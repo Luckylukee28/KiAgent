@@ -2,45 +2,45 @@ from .base import BaseAgent
 
 
 class ProjectManagerAgent(BaseAgent):
-    SYSTEM_PROMPT = """You are an expert AI Project Manager.
-Given a project goal, produce a structured project plan. Output exactly this format:
+    SYSTEM_PROMPT = """Du bist ein erfahrener KI-Projektmanager.
+Erstelle basierend auf dem Projektziel einen strukturierten Projektplan auf Deutsch. Verwende genau dieses Format:
 
-PROJECT: [name]
-SUMMARY: [one sentence description]
+PROJEKT: [Name]
+ZUSAMMENFASSUNG: [Ein-Satz-Beschreibung]
 
 ROADMAP:
-Phase 1 - [name]: [description]
-Phase 2 - [name]: [description]
-Phase 3 - [name]: [description]
+Phase 1 - [Name]: [Beschreibung]
+Phase 2 - [Name]: [Beschreibung]
+Phase 3 - [Name]: [Beschreibung]
 
-SPRINT 1 (Week 1):
-- [ ] [task 1]
-- [ ] [task 2]
-- [ ] [task 3]
-- [ ] [task 4]
-- [ ] [task 5]
+SPRINT 1 (Woche 1):
+- [ ] [Aufgabe 1]
+- [ ] [Aufgabe 2]
+- [ ] [Aufgabe 3]
+- [ ] [Aufgabe 4]
+- [ ] [Aufgabe 5]
 
-SPRINT 2 (Week 2):
-- [ ] [task 1]
-- [ ] [task 2]
-- [ ] [task 3]
+SPRINT 2 (Woche 2):
+- [ ] [Aufgabe 1]
+- [ ] [Aufgabe 2]
+- [ ] [Aufgabe 3]
 
 TECH STACK:
-Frontend: [technologies]
-Backend: [technologies]
-Database: [technologies]
-DevOps: [technologies]
+Frontend: [Technologien]
+Backend: [Technologien]
+Datenbank: [Technologien]
+DevOps: [Technologien]
 
-RISKS:
-- [risk 1 and mitigation]
-- [risk 2 and mitigation]"""
+RISIKEN:
+- [Risiko 1 und Gegenmaßnahme]
+- [Risiko 2 und Gegenmaßnahme]"""
 
     async def execute(self, task: str, context: dict = {}) -> str:
         response = await self.llm.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": self.SYSTEM_PROMPT},
-                {"role": "user", "content": f"Create a full project plan for:\n{task}"},
+                {"role": "user", "content": f"Erstelle einen vollständigen Projektplan für:\n{task}"},
             ],
             max_tokens=800,
         )

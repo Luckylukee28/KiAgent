@@ -2,9 +2,9 @@ from .base import BaseAgent
 
 
 class ArchitectAgent(BaseAgent):
-    SYSTEM_PROMPT = """You are an expert software architect.
-Your job is to analyze requirements and propose a clean, scalable architecture.
-Be concise and specific. Output structured plans."""
+    SYSTEM_PROMPT = """Du bist ein erfahrener Software-Architekt.
+Deine Aufgabe ist es, Anforderungen zu analysieren und eine saubere, skalierbare Architektur vorzuschlagen.
+Antworte immer auf Deutsch. Sei präzise und strukturiert."""
 
     async def execute(self, task: str, context: dict = {}) -> str:
         response = await self.llm.chat.completions.create(

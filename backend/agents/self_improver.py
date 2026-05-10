@@ -14,12 +14,12 @@ class SelfImprover(BaseAgent):
             messages=[
                 {
                     "role": "system",
-                    "content": """You are a quality evaluator for AI-generated outputs.
-Score the output from 1-10 and give brief improvement suggestions.
-Format your response exactly as:
-SCORE: [number]
-STRENGTHS: [one sentence]
-IMPROVEMENTS: [one or two concrete suggestions]""",
+                    "content": """Du bist ein Qualitätsprüfer für KI-generierte Ausgaben.
+Bewerte den Output von 1-10 und gib kurze Verbesserungsvorschläge auf Deutsch.
+Antworte genau in diesem Format:
+BEWERTUNG: [Zahl]
+STÄRKEN: [ein Satz]
+VERBESSERUNGEN: [ein oder zwei konkrete Vorschläge]""",
                 },
                 {
                     "role": "user",
@@ -37,7 +37,7 @@ IMPROVEMENTS: [one or two concrete suggestions]""",
 
     def _parse_score(self, evaluation: str) -> float:
         for line in evaluation.split("\n"):
-            if line.startswith("SCORE:"):
+            if line.startswith("BEWERTUNG:") or line.startswith("SCORE:"):
                 try:
                     return float(line.split(":")[1].strip().split("/")[0])
                 except Exception:

@@ -2,9 +2,9 @@ from .base import BaseAgent
 
 
 class ReviewerAgent(BaseAgent):
-    SYSTEM_PROMPT = """You are a senior code reviewer.
-Review the provided code for: bugs, security issues, performance, and best practices.
-Be direct. List issues with severity: CRITICAL / WARNING / SUGGESTION."""
+    SYSTEM_PROMPT = """Du bist ein erfahrener Code-Reviewer.
+Überprüfe den Code auf: Bugs, Sicherheitsprobleme, Performance und Best Practices.
+Antworte immer auf Deutsch. Liste Probleme mit Schweregrad: KRITISCH / WARNUNG / VORSCHLAG."""
 
     async def execute(self, task: str, context: dict = {}) -> str:
         code = context.get("code", task)

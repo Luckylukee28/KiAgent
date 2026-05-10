@@ -35,11 +35,11 @@ class Orchestrator:
                 await broadcast({"agent": agent, "message": content})
 
         # ── PHASE 0: PROJECT MANAGER ─────────────────────────────────
-        await emit("Project Manager", "Creating project plan and roadmap...")
+        await emit("Project Manager", "Erstelle Projektplan und Roadmap...")
         past_plans = await search_memories("Project Manager", goal, limit=2)
         pm_context = ""
         if past_plans:
-            pm_context = "\n\nPast similar projects for reference:\n" + "\n".join(
+            pm_context = "\n\nÄhnliche vergangene Projekte als Referenz:\n" + "\n".join(
                 p["output"][:200] for p in past_plans
             )
         project_plan = await self.pm.execute(goal + pm_context)
@@ -47,7 +47,7 @@ class Orchestrator:
         await store_memory("Project Manager", goal, project_plan)
 
         # ── PHASE 1: DEBATE ──────────────────────────────────────────
-        await emit("Debate", "Starting architecture debate...")
+        await emit("Debate", "Architektur-Debatte startet...")
 
         agent_a = DebateAgent("Agent A", self.groq, "Use a monolithic architecture for simplicity and faster MVP delivery")
         agent_b = DebateAgent("Agent B", self.groq, "Use a microservices architecture for scalability and separation of concerns")
@@ -66,7 +66,7 @@ class Orchestrator:
         await emit("Judge", verdict)
 
         # ── PHASE 2: ARCHITECTURE ────────────────────────────────────
-        await emit("Architect", "Designing architecture based on debate outcome...")
+        await emit("Architect", "Entwerfe Architektur basierend auf dem Debattenergebnis...")
         past_arch = await search_memories("Architect", goal, limit=2)
         arch_hint = "\n\nPast successful architectures:\n" + "\n".join(
             p["output"][:300] for p in past_arch
@@ -76,7 +76,7 @@ class Orchestrator:
         await store_memory("Architect", goal, architecture)
 
         # ── PHASE 3: PARALLEL CODING ─────────────────────────────────
-        await emit("System", "Starting parallel coding: Frontend & Backend simultaneously...")
+        await emit("System", "Paralleles Coding startet: Frontend & Backend gleichzeitig...")
 
         frontend_task = self.frontend_agent.execute(goal, context={"architecture": architecture})
         backend_task = self.backend_agent.execute(goal, context={"architecture": architecture})
@@ -88,15 +88,15 @@ class Orchestrator:
         await store_memory("Backend Agent", goal, backend_code)
 
         # ── PHASE 4: SELF-IMPROVEMENT ────────────────────────────────
-        await emit("Self Improver", "Evaluating outputs and storing learnings...")
+        await emit("Self Improver", "Bewerte Outputs und speichere Erkenntnisse...")
         fe_eval, be_eval = await asyncio.gather(
             self.improver.evaluate(goal, frontend_code, "Frontend Agent"),
             self.improver.evaluate(goal, backend_code, "Backend Agent"),
         )
-        await emit("Self Improver", f"**Frontend evaluation:**\n{fe_eval}\n\n**Backend evaluation:**\n{be_eval}")
+        await emit("Self Improver", f"**Frontend-Bewertung:**\n{fe_eval}\n\n**Backend-Bewertung:**\n{be_eval}")
 
         # ── PHASE 5: REVIEW ──────────────────────────────────────────
-        await emit("Reviewer", "Reviewing all generated code...")
+        await emit("Reviewer", "Überprüfe den gesamten generierten Code...")
         combined = f"FRONTEND:\n{frontend_code}\n\nBACKEND:\n{backend_code}"
         review = await self.reviewer.execute(goal, context={"code": combined})
         await emit("Reviewer", review)

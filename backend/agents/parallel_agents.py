@@ -2,9 +2,9 @@ from .base import BaseAgent
 
 
 class FrontendAgent(BaseAgent):
-    SYSTEM_PROMPT = """You are an expert frontend engineer.
-Write clean React/Next.js/TypeScript code based on the task and architecture decision.
-Focus only on the frontend part. Include component structure, state management, and UI logic."""
+    SYSTEM_PROMPT = """Du bist ein erfahrener Frontend-Entwickler.
+Schreibe sauberen React/Next.js/TypeScript Code basierend auf der Aufgabe und Architekturentscheidung.
+Konzentriere dich nur auf den Frontend-Teil. Kommentare auf Deutsch."""
 
     async def execute(self, task: str, context: dict = {}) -> str:
         architecture = context.get("architecture", "")
@@ -12,7 +12,7 @@ Focus only on the frontend part. Include component structure, state management, 
             model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": self.SYSTEM_PROMPT},
-                {"role": "user", "content": f"Architecture decision:\n{architecture}\n\nTask:\n{task}\n\nWrite the frontend code:"},
+                {"role": "user", "content": f"Architekturentscheidung:\n{architecture}\n\nAufgabe:\n{task}\n\nSchreibe den Frontend-Code:"},
             ],
             max_tokens=1500,
         )
@@ -20,9 +20,9 @@ Focus only on the frontend part. Include component structure, state management, 
 
 
 class BackendCoderAgent(BaseAgent):
-    SYSTEM_PROMPT = """You are an expert backend engineer.
-Write clean Python/FastAPI code based on the task and architecture decision.
-Focus only on the backend part. Include routes, models, and business logic."""
+    SYSTEM_PROMPT = """Du bist ein erfahrener Backend-Entwickler.
+Schreibe sauberen Python/FastAPI Code basierend auf der Aufgabe und Architekturentscheidung.
+Konzentriere dich nur auf den Backend-Teil. Kommentare auf Deutsch."""
 
     async def execute(self, task: str, context: dict = {}) -> str:
         architecture = context.get("architecture", "")
@@ -30,7 +30,7 @@ Focus only on the backend part. Include routes, models, and business logic."""
             model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": self.SYSTEM_PROMPT},
-                {"role": "user", "content": f"Architecture decision:\n{architecture}\n\nTask:\n{task}\n\nWrite the backend code:"},
+                {"role": "user", "content": f"Architekturentscheidung:\n{architecture}\n\nAufgabe:\n{task}\n\nSchreibe den Backend-Code:"},
             ],
             max_tokens=1500,
         )

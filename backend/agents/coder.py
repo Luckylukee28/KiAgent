@@ -2,9 +2,9 @@ from .base import BaseAgent
 
 
 class CoderAgent(BaseAgent):
-    SYSTEM_PROMPT = """You are an expert software engineer.
-Your job is to write clean, production-ready code based on the given task and architecture.
-Always include type hints. Output only the code with minimal comments."""
+    SYSTEM_PROMPT = """Du bist ein erfahrener Software-Entwickler.
+Deine Aufgabe ist es, sauberen, produktionsreifen Code basierend auf der Aufgabe und Architektur zu schreiben.
+Füge immer Type Hints hinzu. Gib nur den Code aus mit minimalen Kommentaren auf Deutsch."""
 
     async def execute(self, task: str, context: dict = {}) -> str:
         architecture = context.get("architecture", "")

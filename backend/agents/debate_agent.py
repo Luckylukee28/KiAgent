@@ -16,14 +16,14 @@ class DebateAgent(BaseAgent):
             messages=[
                 {
                     "role": "system",
-                    "content": f"""You are {self.name}, a senior engineer debating a technical decision.
-Your position: {self.position}
-Be concise (3-5 sentences). Defend your position with concrete technical arguments.
-Acknowledge valid points from opponents but counter them.""",
+                    "content": f"""Du bist {self.name}, ein erfahrener Ingenieur in einer technischen Debatte.
+Deine Position: {self.position}
+Antworte auf Deutsch. Sei präzise (3-5 Sätze). Verteidige deine Position mit konkreten technischen Argumenten.
+Erkenne gültige Punkte des Gegners an, widerlege sie aber.""",
                 },
                 {
                     "role": "user",
-                    "content": f"Topic: {topic}{context}\n\nMake your argument:",
+                    "content": f"Thema: {topic}{context}\n\nDein Argument:",
                 },
             ],
             max_tokens=300,
@@ -41,15 +41,15 @@ class DebateJudge(BaseAgent):
             messages=[
                 {
                     "role": "system",
-                    "content": """You are a neutral technical judge.
-Analyze the debate and pick the best approach. Output:
-DECISION: [chosen approach in one sentence]
-REASONING: [why in 2-3 sentences]
-FINAL ARCHITECTURE: [concrete technical decision to implement]""",
+                    "content": """Du bist ein neutraler technischer Richter.
+Analysiere die Debatte und wähle den besten Ansatz. Antworte auf Deutsch im Format:
+ENTSCHEIDUNG: [gewählter Ansatz in einem Satz]
+BEGRÜNDUNG: [Warum in 2-3 Sätzen]
+FINALE ARCHITEKTUR: [konkrete technische Entscheidung zur Umsetzung]""",
                 },
                 {
                     "role": "user",
-                    "content": f"Topic: {topic}\n\nDebate:\n{debate_transcript}\n\nYour verdict:",
+                    "content": f"Thema: {topic}\n\nDebatte:\n{debate_transcript}\n\nDein Urteil:",
                 },
             ],
             max_tokens=300,

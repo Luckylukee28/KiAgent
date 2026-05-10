@@ -26,10 +26,10 @@ export default function TaskInput() {
       })
       const data = await res.json()
       if (data.status === 'done') {
-        addMessage({ agent: 'System', message: 'Pipeline completed.' })
+        addMessage({ agent: 'System', message: 'Pipeline abgeschlossen.' })
       }
     } catch (e) {
-      addMessage({ agent: 'System', message: 'Error: Could not reach backend.' })
+      addMessage({ agent: 'System', message: 'Fehler: Backend nicht erreichbar.' })
     } finally {
       setRunning(false)
     }
@@ -39,7 +39,7 @@ export default function TaskInput() {
     <div className="flex gap-2 p-4 border-t border-gray-700">
       <input
         className="flex-1 bg-gray-800 text-white rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-        placeholder="Describe what you want to build..."
+        placeholder="Beschreibe was du bauen möchtest..."
         value={goal}
         onChange={(e) => setGoal(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && handleRun()}
@@ -50,7 +50,7 @@ export default function TaskInput() {
         disabled={isRunning || !goal.trim()}
         className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-3 rounded-lg font-medium transition-colors"
       >
-        {isRunning ? 'Running...' : 'Run'}
+        {isRunning ? 'Läuft...' : 'Starten'}
       </button>
     </div>
   )
