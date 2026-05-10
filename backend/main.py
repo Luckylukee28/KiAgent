@@ -1,0 +1,66 @@
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from dotenv import load_dotenv
+from groq import AsyncGroq
+import os
+
+from websocket.manager import ConnectionManager
+from orchestrator.orchestrator import Orchestrator
+
+load_dotenv()
+
+groq_client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
+
+manager = ConnectionManager()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("Multi-Agent Platform starting...")
+    yield
+    print("Shutting down...")
+
+
+app = FastAPI(title="Multi-Agent Platform", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+class TaskRequest(BaseModel):
+    goal: str
+
+
+@app.get("/")
+async def root():
+    return {"status": "running", "agents": ["Architect", "Coder", "Reviewer"]}
+
+
+@app.post("/api/run")
+async def run_task(request: TaskRequest):
+    orchestrator = Orchestrator(groq_client)
+    results = await orchestrator.run_pipeline(
+        goal=request.goal,
+        broadcast=manager.broadcast,
+    )
+    return {"status": "done", "results": results}
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            # Echo back for now; orchestrator sends via broadcast
+            await websocket.send_text(f'{{"echo": "{data}"}}')
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
