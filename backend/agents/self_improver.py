@@ -8,18 +8,18 @@ class SelfImprover(BaseAgent):
     async def execute(self, task: str, context: dict = {}) -> str:
         return await self.evaluate(task, context.get("output", ""), context.get("agent", "unknown"))
 
-    async def evaluate(self, task: str, output: str, agent_name: str) -> str:
+    async def evaluate(self, task: str, output: str, agent_name: str, language: str = "de") -> str:
+        system = self.prompt(
+            de="Du bist ein Qualitätsprüfer für KI-generierte Ausgaben. Bewerte von 1-10 auf Deutsch.\nFormat:\nBEWERTUNG: [Zahl]\nSTÄRKEN: [ein Satz]\nVERBESSERUNGEN: [ein oder zwei Vorschläge]",
+            en="You are a quality evaluator for AI-generated outputs. Score from 1-10 in English.\nFormat:\nSCORE: [number]\nSTRENGTHS: [one sentence]\nIMPROVEMENTS: [one or two suggestions]",
+            language=language,
+        )
         response = await self.llm.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
                 {
                     "role": "system",
-                    "content": """Du bist ein Qualitätsprüfer für KI-generierte Ausgaben.
-Bewerte den Output von 1-10 und gib kurze Verbesserungsvorschläge auf Deutsch.
-Antworte genau in diesem Format:
-BEWERTUNG: [Zahl]
-STÄRKEN: [ein Satz]
-VERBESSERUNGEN: [ein oder zwei konkrete Vorschläge]""",
+                    "content": system,
                 },
                 {
                     "role": "user",

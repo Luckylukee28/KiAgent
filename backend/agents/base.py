@@ -11,5 +11,8 @@ class BaseAgent(ABC):
     async def execute(self, task: str, context: dict = {}) -> str:
         raise NotImplementedError
 
+    def prompt(self, de: str, en: str, language: str = "de") -> str:
+        return de if language == "de" else en
+
     def __repr__(self):
         return f"<Agent: {self.name}>"

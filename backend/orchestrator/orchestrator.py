@@ -24,7 +24,7 @@ class Orchestrator:
         self.improver = SelfImprover("Self Improver", groq_client)
 
     async def run_pipeline(
-        self, goal: str, broadcast: Callable[[dict], None] = None
+        self, goal: str, broadcast: Callable[[dict], None] = None, language: str = "de"
     ) -> dict:
         await init_db()
         results = {}
@@ -34,23 +34,29 @@ class Orchestrator:
             if broadcast:
                 await broadcast({"agent": agent, "message": content})
 
+        lang = language
+        is_de = lang == "de"
+
         # ── PHASE 0: PROJECT MANAGER ─────────────────────────────────
-        await emit("Project Manager", "Erstelle Projektplan und Roadmap...")
+        await emit("Project Manager", "Erstelle Projektplan und Roadmap..." if is_de else "Creating project plan and roadmap...")
         past_plans = await search_memories("Project Manager", goal, limit=2)
         pm_context = ""
         if past_plans:
-            pm_context = "\n\nÄhnliche vergangene Projekte als Referenz:\n" + "\n".join(
+            pm_context = ("\n\nÄhnliche vergangene Projekte als Referenz:\n" if is_de else "\n\nPast similar projects for reference:\n") + "\n".join(
                 p["output"][:200] for p in past_plans
             )
-        project_plan = await self.pm.execute(goal + pm_context)
+        project_plan = await self.pm.execute(goal + pm_context, context={"language": lang})
         await emit("Project Manager", project_plan)
         await store_memory("Project Manager", goal, project_plan)
 
         # ── PHASE 1: DEBATE ──────────────────────────────────────────
-        await emit("Debate", "Architektur-Debatte startet...")
+        await emit("Debate", "Architektur-Debatte startet..." if is_de else "Starting architecture debate...")
 
-        agent_a = DebateAgent("Agent A", self.groq, "Use a monolithic architecture for simplicity and faster MVP delivery")
-        agent_b = DebateAgent("Agent B", self.groq, "Use a microservices architecture for scalability and separation of concerns")
+        pos_a = "Monolithische Architektur für Einfachheit und schnelle MVP-Entwicklung" if is_de else "Use a monolithic architecture for simplicity and faster MVP delivery"
+        pos_b = "Microservices-Architektur für Skalierbarkeit und Trennung der Zuständigkeiten" if is_de else "Use a microservices architecture for scalability and separation of concerns"
+        agent_a = DebateAgent("Agent A", self.groq, pos_a, language=lang)
+        agent_b = DebateAgent("Agent B", self.groq, pos_b, language=lang)
+        self.judge._lang = lang
 
         arg_a = await agent_a.argue(goal)
         await emit("Agent A", arg_a)
@@ -66,20 +72,20 @@ class Orchestrator:
         await emit("Judge", verdict)
 
         # ── PHASE 2: ARCHITECTURE ────────────────────────────────────
-        await emit("Architect", "Entwerfe Architektur basierend auf dem Debattenergebnis...")
+        await emit("Architect", "Entwerfe Architektur basierend auf dem Debattenergebnis..." if is_de else "Designing architecture based on debate outcome...")
         past_arch = await search_memories("Architect", goal, limit=2)
-        arch_hint = "\n\nPast successful architectures:\n" + "\n".join(
+        arch_hint = ("\n\nErfolgreiche vergangene Architekturen:\n" if is_de else "\n\nPast successful architectures:\n") + "\n".join(
             p["output"][:300] for p in past_arch
         ) if past_arch else ""
-        architecture = await self.architect.execute(goal + arch_hint, context={"debate_verdict": verdict})
+        architecture = await self.architect.execute(goal + arch_hint, context={"debate_verdict": verdict, "language": lang})
         await emit("Architect", architecture)
         await store_memory("Architect", goal, architecture)
 
         # ── PHASE 3: PARALLEL CODING ─────────────────────────────────
-        await emit("System", "Paralleles Coding startet: Frontend & Backend gleichzeitig...")
+        await emit("System", "Paralleles Coding startet: Frontend & Backend gleichzeitig..." if is_de else "Starting parallel coding: Frontend & Backend simultaneously...")
 
-        frontend_task = self.frontend_agent.execute(goal, context={"architecture": architecture})
-        backend_task = self.backend_agent.execute(goal, context={"architecture": architecture})
+        frontend_task = self.frontend_agent.execute(goal, context={"architecture": architecture, "language": lang})
+        backend_task = self.backend_agent.execute(goal, context={"architecture": architecture, "language": lang})
         frontend_code, backend_code = await asyncio.gather(frontend_task, backend_task)
 
         await emit("Frontend Agent", frontend_code)
@@ -88,17 +94,19 @@ class Orchestrator:
         await store_memory("Backend Agent", goal, backend_code)
 
         # ── PHASE 4: SELF-IMPROVEMENT ────────────────────────────────
-        await emit("Self Improver", "Bewerte Outputs und speichere Erkenntnisse...")
+        await emit("Self Improver", "Bewerte Outputs und speichere Erkenntnisse..." if is_de else "Evaluating outputs and storing learnings...")
         fe_eval, be_eval = await asyncio.gather(
-            self.improver.evaluate(goal, frontend_code, "Frontend Agent"),
-            self.improver.evaluate(goal, backend_code, "Backend Agent"),
+            self.improver.evaluate(goal, frontend_code, "Frontend Agent", lang),
+            self.improver.evaluate(goal, backend_code, "Backend Agent", lang),
         )
-        await emit("Self Improver", f"**Frontend-Bewertung:**\n{fe_eval}\n\n**Backend-Bewertung:**\n{be_eval}")
+        fe_label = "Frontend-Bewertung" if is_de else "Frontend Evaluation"
+        be_label = "Backend-Bewertung" if is_de else "Backend Evaluation"
+        await emit("Self Improver", f"**{fe_label}:**\n{fe_eval}\n\n**{be_label}:**\n{be_eval}")
 
         # ── PHASE 5: REVIEW ──────────────────────────────────────────
-        await emit("Reviewer", "Überprüfe den gesamten generierten Code...")
+        await emit("Reviewer", "Überprüfe den gesamten generierten Code..." if is_de else "Reviewing all generated code...")
         combined = f"FRONTEND:\n{frontend_code}\n\nBACKEND:\n{backend_code}"
-        review = await self.reviewer.execute(goal, context={"code": combined})
+        review = await self.reviewer.execute(goal, context={"code": combined, "language": lang})
         await emit("Reviewer", review)
         await store_memory("Reviewer", goal, review)
 

@@ -2,18 +2,22 @@ from .base import BaseAgent
 
 
 class CoderAgent(BaseAgent):
-    SYSTEM_PROMPT = """Du bist ein erfahrener Software-Entwickler.
-Deine Aufgabe ist es, sauberen, produktionsreifen Code basierend auf der Aufgabe und Architektur zu schreiben.
-Füge immer Type Hints hinzu. Gib nur den Code aus mit minimalen Kommentaren auf Deutsch."""
-
     async def execute(self, task: str, context: dict = {}) -> str:
+        lang = context.get("language", "de")
         architecture = context.get("architecture", "")
-        user_content = f"Architecture:\n{architecture}\n\nTask:\n{task}" if architecture else task
+        system = self.prompt(
+            de="Du bist ein erfahrener Software-Entwickler. Schreibe sauberen, produktionsreifen Code. Füge Type Hints hinzu. Kommentare auf Deutsch.",
+            en="You are an expert software engineer. Write clean, production-ready code. Always include type hints. Output only the code with minimal comments.",
+            language=lang,
+        )
+        arch_label = "Architektur" if lang == "de" else "Architecture"
+        task_label = "Aufgabe" if lang == "de" else "Task"
+        user_content = f"{arch_label}:\n{architecture}\n\n{task_label}:\n{task}" if architecture else task
 
         response = await self.llm.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
-                {"role": "system", "content": self.SYSTEM_PROMPT},
+                {"role": "system", "content": system},
                 {"role": "user", "content": user_content},
             ],
             max_tokens=2000,

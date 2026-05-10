@@ -37,6 +37,7 @@ app.add_middleware(
 
 class TaskRequest(BaseModel):
     goal: str
+    language: str = "de"
 
 
 @app.get("/")
@@ -50,6 +51,7 @@ async def run_task(request: TaskRequest):
     results = await orchestrator.run_pipeline(
         goal=request.goal,
         broadcast=manager.broadcast,
+        language=request.language,
     )
     return {"status": "done", "results": results}
 
