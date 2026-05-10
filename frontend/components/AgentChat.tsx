@@ -6,6 +6,7 @@ import { useAgentStore } from '@/lib/store'
 import CodeBlock from './CodeBlock'
 
 const AGENT_COLORS: Record<string, string> = {
+  'Project Manager': 'bg-teal-900 border-teal-500',
   Architect: 'bg-purple-900 border-purple-500',
   Coder: 'bg-blue-900 border-blue-500',
   Reviewer: 'bg-green-900 border-green-500',
@@ -15,10 +16,12 @@ const AGENT_COLORS: Record<string, string> = {
   Debate: 'bg-gray-800 border-gray-500',
   'Frontend Agent': 'bg-pink-900 border-pink-500',
   'Backend Agent': 'bg-indigo-900 border-indigo-500',
+  'Self Improver': 'bg-rose-900 border-rose-500',
   System: 'bg-gray-800 border-gray-600',
 }
 
 const AGENT_ICONS: Record<string, string> = {
+  'Project Manager': '📋',
   Architect: '🏗️',
   Coder: '💻',
   Reviewer: '🔍',
@@ -28,6 +31,7 @@ const AGENT_ICONS: Record<string, string> = {
   Debate: '💬',
   'Frontend Agent': '🎨',
   'Backend Agent': '⚙️',
+  'Self Improver': '🧠',
   System: '🤖',
 }
 
