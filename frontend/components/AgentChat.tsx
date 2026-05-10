@@ -14,10 +14,19 @@ const AGENT_COLORS: Record<string, string> = {
   'Agent B': 'bg-cyan-900 border-cyan-500',
   Judge: 'bg-yellow-900 border-yellow-500',
   Debate: 'bg-gray-800 border-gray-500',
+  Collaboration: 'bg-gray-800 border-gray-500',
   'Frontend Agent': 'bg-pink-900 border-pink-500',
   'Backend Agent': 'bg-indigo-900 border-indigo-500',
   'Self Improver': 'bg-rose-900 border-rose-500',
+  Synthesizer: 'bg-violet-900 border-violet-400',
   System: 'bg-gray-800 border-gray-600',
+}
+
+// Groq agents get blue tones, Gemini agents get Google-blue/green
+function getAgentColor(agent: string): string {
+  if (agent.startsWith('Groq ·')) return 'bg-blue-950 border-blue-500'
+  if (agent.startsWith('Gemini ·')) return 'bg-sky-950 border-sky-400'
+  return AGENT_COLORS[agent] ?? 'bg-gray-900 border-gray-600'
 }
 
 const AGENT_ICONS: Record<string, string> = {
@@ -29,10 +38,18 @@ const AGENT_ICONS: Record<string, string> = {
   'Agent B': '🟠',
   Judge: '⚖️',
   Debate: '💬',
+  Collaboration: '🤝',
   'Frontend Agent': '🎨',
   'Backend Agent': '⚙️',
   'Self Improver': '🧠',
+  Synthesizer: '✨',
   System: '🤖',
+}
+
+function getAgentIcon(agent: string): string {
+  if (agent.startsWith('Groq ·')) return '🦙'
+  if (agent.startsWith('Gemini ·')) return '🔷'
+  return AGENT_ICONS[agent] ?? '🤖'
 }
 
 function detectLanguage(code: string): string {
@@ -81,10 +98,10 @@ export default function AgentChat() {
             key={msg.id}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`rounded-lg border p-4 ${AGENT_COLORS[msg.agent] ?? 'bg-gray-900 border-gray-600'}`}
+            className={`rounded-lg border p-4 ${getAgentColor(msg.agent)}`}
           >
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-lg">{AGENT_ICONS[msg.agent] ?? '🤖'}</span>
+              <span className="text-lg">{getAgentIcon(msg.agent)}</span>
               <span className="font-bold text-white text-sm">{msg.agent}</span>
               <span className="text-xs text-gray-400 ml-auto">
                 {msg.timestamp.toLocaleTimeString()}

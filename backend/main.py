@@ -13,6 +13,7 @@ from orchestrator.orchestrator import Orchestrator
 load_dotenv()
 
 groq_client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
+google_api_key = os.getenv("GOOGLE_API_KEY", "")
 
 manager = ConnectionManager()
 
@@ -47,7 +48,7 @@ async def root():
 
 @app.post("/api/run")
 async def run_task(request: TaskRequest):
-    orchestrator = Orchestrator(groq_client)
+    orchestrator = Orchestrator(groq_client, google_api_key=google_api_key)
     results = await orchestrator.run_pipeline(
         goal=request.goal,
         broadcast=manager.broadcast,
