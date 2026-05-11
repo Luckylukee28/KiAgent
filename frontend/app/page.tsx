@@ -1,27 +1,24 @@
+'use client'
+
+import { useState } from 'react'
 import AgentChat from '@/components/AgentChat'
 import TaskInput from '@/components/TaskInput'
-import LanguageToggle from '@/components/LanguageToggle'
+import MindMap from '@/components/MindMap'
+import NavMenu from '@/components/NavMenu'
 
 export default function Home() {
+  const [view, setView] = useState<'chat' | 'mindmap'>('mindmap')
+
   return (
-    <main className="flex flex-col h-screen bg-gray-950 text-white">
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-800 flex-wrap">
-        <div className="w-3 h-3 rounded-full bg-green-400 animate-pulse" />
-        <h1 className="text-xl font-bold">Multi-Agent Platform</h1>
-        <LanguageToggle />
-        <div className="ml-auto flex gap-2 text-sm text-gray-400 flex-wrap">
-          <span className="px-2 py-1 rounded bg-teal-900">📋 PM</span>
-          <span className="px-2 py-1 rounded bg-orange-900">💬 Debate</span>
-          <span className="px-2 py-1 rounded bg-yellow-900">⚖️ Judge</span>
-          <span className="px-2 py-1 rounded bg-blue-950 border border-blue-500">🦙 Groq</span>
-          <span className="px-2 py-1 rounded bg-sky-950 border border-sky-400">🔷 Gemini</span>
-          <span className="px-2 py-1 rounded bg-violet-900">✨ Synthesizer</span>
-          <span className="px-2 py-1 rounded bg-rose-900">🧠 Self Improver</span>
-        </div>
+    <main className="relative flex flex-col h-screen bg-gray-950 text-white">
+      <div className="absolute top-3 right-3 z-20">
+        <NavMenu view={view} onViewChange={setView} />
       </div>
+
       <div className="flex-1 overflow-hidden">
-        <AgentChat />
+        {view === 'chat' ? <AgentChat /> : <MindMap />}
       </div>
+
       <TaskInput />
     </main>
   )

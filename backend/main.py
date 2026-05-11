@@ -14,6 +14,8 @@ load_dotenv()
 
 groq_client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
 google_api_key = os.getenv("GOOGLE_API_KEY", "")
+mistral_api_key = os.getenv("MISTRAL_API_KEY", "")
+openrouter_api_key = os.getenv("OPENROUTER_API_KEY", "")
 
 manager = ConnectionManager()
 
@@ -41,6 +43,12 @@ class TaskRequest(BaseModel):
     language: str = "de"
 
 
+class ChatRequest(BaseModel):
+    message: str
+    context: str = ""
+    language: str = "de"
+
+
 @app.get("/")
 async def root():
     return {"status": "running", "agents": ["Architect", "Coder", "Reviewer"]}
@@ -48,13 +56,35 @@ async def root():
 
 @app.post("/api/run")
 async def run_task(request: TaskRequest):
-    orchestrator = Orchestrator(groq_client, google_api_key=google_api_key)
+    orchestrator = Orchestrator(
+        groq_client,
+        google_api_key=google_api_key,
+        mistral_api_key=mistral_api_key,
+        openrouter_api_key=openrouter_api_key,
+    )
     results = await orchestrator.run_pipeline(
         goal=request.goal,
         broadcast=manager.broadcast,
         language=request.language,
     )
     return {"status": "done", "results": results}
+
+
+@app.post("/api/chat")
+async def chat(request: ChatRequest):
+    orchestrator = Orchestrator(
+        groq_client,
+        google_api_key=google_api_key,
+        mistral_api_key=mistral_api_key,
+        openrouter_api_key=openrouter_api_key,
+    )
+    result = await orchestrator.chat(
+        message=request.message,
+        context=request.context,
+        broadcast=manager.broadcast,
+        language=request.language,
+    )
+    return {"status": "done", "result": result}
 
 
 @app.websocket("/ws")

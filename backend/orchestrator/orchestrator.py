@@ -9,15 +9,16 @@ from agents.parallel_agents import FrontendAgent, BackendCoderAgent
 from agents.pm_agent import ProjectManagerAgent
 from agents.self_improver import SelfImprover
 from agents.gemini_agent import GeminiAgent, GeminiSynthesizer
+from agents.mistral_agent import MistralAgent
+from agents.openrouter_agent import OpenRouterAgent
 from memory.memory_manager import init_db, store_memory, search_memories
 
 
 class Orchestrator:
-    def __init__(self, groq_client, google_api_key: str = ""):
+    def __init__(self, groq_client, google_api_key: str = "", mistral_api_key: str = "", openrouter_api_key: str = ""):
         self.groq = groq_client
-        self.google_api_key = google_api_key
 
-        # Groq agents
+        # Groq agents (always available)
         self.architect = ArchitectAgent("Architect", groq_client)
         self.coder = CoderAgent("Coder", groq_client)
         self.reviewer = ReviewerAgent("Reviewer", groq_client)
@@ -27,56 +28,103 @@ class Orchestrator:
         self.pm = ProjectManagerAgent("Project Manager", groq_client)
         self.improver = SelfImprover("Self Improver", groq_client)
 
-        # Gemini agents (only if key provided)
+        # Gemini agents
         self.has_gemini = bool(google_api_key)
         if self.has_gemini:
-            self.gemini_architect = GeminiAgent("Gemini", google_api_key, role="Architektur-Review")
-            self.gemini_frontend = GeminiAgent("Gemini", google_api_key, role="Frontend-Review")
-            self.gemini_backend = GeminiAgent("Gemini", google_api_key, role="Backend-Review")
-            self.gemini_reviewer = GeminiAgent("Gemini", google_api_key, role="Code-Review")
+            self.gemini = GeminiAgent("Gemini", google_api_key)
             self.synthesizer = GeminiSynthesizer("Synthesizer", google_api_key)
+
+        # Mistral agents
+        self.has_mistral = bool(mistral_api_key)
+        if self.has_mistral:
+            self.mistral = MistralAgent("Mistral", mistral_api_key)
+
+        # OpenRouter agents
+        self.has_openrouter = bool(openrouter_api_key)
+        if self.has_openrouter:
+            self.openrouter = OpenRouterAgent("OpenRouter", openrouter_api_key)
+
+    def _active_providers(self) -> list[str]:
+        providers = ["Groq"]
+        if self.has_gemini:
+            providers.append("Gemini")
+        if self.has_mistral:
+            providers.append("Mistral")
+        if self.has_openrouter:
+            providers.append("OpenRouter")
+        return providers
 
     async def _collaborate(
         self,
         task: str,
         groq_agent,
-        gemini_agent,
         context: dict,
         emit: Callable,
         phase_name: str,
         lang: str,
     ) -> str:
-        """Run Groq → Gemini → Synthesizer for any task."""
+        """Run all available agents in parallel, then synthesize."""
         is_de = lang == "de"
 
-        # Round 1: Groq proposes
-        groq_label = f"Groq · {phase_name}"
-        thinking = "Erarbeite Lösung..." if is_de else "Working on solution..."
-        await emit(groq_label, thinking)
-        groq_output = await groq_agent.execute(task, {**context, "language": lang})
-        await emit(groq_label, groq_output)
+        async def run_agent(agent, label: str, provider: str) -> tuple[str, str]:
+            thinking = "Erarbeite Lösung..." if is_de else "Working on solution..."
+            await emit(label, thinking)
+            output = await agent.execute(task, {**context, "language": lang, "phase": phase_name})
+            await emit(label, output)
+            return provider, output
 
-        if not self.has_gemini:
-            return groq_output
+        tasks = [run_agent(groq_agent, f"Groq · {phase_name}", "Groq")]
 
-        # Round 2: Gemini reviews Groq's output
-        gemini_label = f"Gemini · {phase_name}"
-        review_msg = "Überprüfe und verbessere Groq-Vorschlag..." if is_de else "Reviewing and improving Groq's proposal..."
-        await emit(gemini_label, review_msg)
-        gemini_output = await gemini_agent.execute(
-            task, {**context, "language": lang, "groq_output": groq_output, "phase": phase_name}
-        )
-        await emit(gemini_label, gemini_output)
+        if self.has_gemini:
+            tasks.append(run_agent(self.gemini, f"Gemini · {phase_name}", "Gemini"))
+        if self.has_mistral:
+            tasks.append(run_agent(self.mistral, f"Mistral · {phase_name}", "Mistral"))
+        if self.has_openrouter:
+            tasks.append(run_agent(self.openrouter, f"OpenRouter · {phase_name}", "OpenRouter"))
 
-        # Round 3: Synthesizer combines best of both
-        synth_label = "Synthesizer"
-        synth_msg = "Kombiniere das Beste aus Groq und Gemini..." if is_de else "Combining the best of Groq and Gemini..."
-        await emit(synth_label, synth_msg)
+        results = await asyncio.gather(*tasks)
+        agent_outputs = dict(results)
+
+        # If only Groq available or Gemini synthesizer not present, return Groq output
+        if not self.has_gemini or len(agent_outputs) == 1:
+            return agent_outputs["Groq"]
+
+        # Synthesize all outputs
+        synth_msg = f"Kombiniere {len(agent_outputs)} KI-Antworten..." if is_de else f"Combining {len(agent_outputs)} AI responses..."
+        await emit("Synthesizer", synth_msg)
         final = await self.synthesizer.execute(
-            task, {"language": lang, "groq_output": groq_output, "gemini_output": gemini_output}
+            task, {"language": lang, "agent_outputs": agent_outputs}
         )
-        await emit(synth_label, final)
+        await emit("Synthesizer", final)
         return final
+
+    async def chat(
+        self, message: str, context: str = "", broadcast=None, language: str = "de"
+    ) -> str:
+        """Single follow-up question — all agents collaborate, then synthesize."""
+        results = {}
+        is_de = language == "de"
+
+        async def emit(agent: str, content: str):
+            results[agent] = content
+            if broadcast:
+                await broadcast({"agent": agent, "message": content})
+
+        task = message
+        ctx = {"previous_context": context} if context else {}
+
+        label = "💬 " + ("Folgefrage" if is_de else "Follow-up")
+        await emit(label, "Alle Agenten bearbeiten deine Frage..." if is_de else "All agents working on your question...")
+
+        result = await self._collaborate(
+            task=task,
+            groq_agent=self.coder,
+            context=ctx,
+            emit=emit,
+            phase_name="Folgefrage" if is_de else "Follow-up",
+            lang=language,
+        )
+        return result
 
     async def run_pipeline(
         self, goal: str, broadcast: Callable[[dict], None] = None, language: str = "de"
@@ -85,6 +133,9 @@ class Orchestrator:
         results = {}
         lang = language
         is_de = lang == "de"
+
+        providers = self._active_providers()
+        provider_list = " + ".join(providers)
 
         async def emit(agent: str, content: str):
             results[agent] = content
@@ -120,11 +171,11 @@ class Orchestrator:
         await emit("Judge", verdict)
 
         # ── PHASE 2: ARCHITECTURE COLLABORATION ──────────────────────
-        await emit("Collaboration", "🤝 Groq + Gemini arbeiten gemeinsam an der Architektur..." if is_de else "🤝 Groq + Gemini collaborating on architecture...")
+        collab_msg = f"🤝 {provider_list} arbeiten gemeinsam an der Architektur..." if is_de else f"🤝 {provider_list} collaborating on architecture..."
+        await emit("Collaboration", collab_msg)
         architecture = await self._collaborate(
             task=goal,
             groq_agent=self.architect,
-            gemini_agent=self.gemini_architect if self.has_gemini else self.architect,
             context={"debate_verdict": verdict},
             emit=emit,
             phase_name="Architektur" if is_de else "Architecture",
@@ -133,13 +184,13 @@ class Orchestrator:
         await store_memory("Architect", goal, architecture)
 
         # ── PHASE 3: PARALLEL CODING COLLABORATION ───────────────────
-        await emit("Collaboration", "🤝 Paralleles Coding: Groq + Gemini gleichzeitig an Frontend & Backend..." if is_de else "🤝 Parallel coding: Groq + Gemini on Frontend & Backend simultaneously...")
+        collab_msg2 = f"🤝 Paralleles Coding: {provider_list} gleichzeitig an Frontend & Backend..." if is_de else f"🤝 Parallel coding: {provider_list} on Frontend & Backend simultaneously..."
+        await emit("Collaboration", collab_msg2)
 
         async def frontend_collab():
             return await self._collaborate(
                 task=goal,
                 groq_agent=self.frontend_agent,
-                gemini_agent=self.gemini_frontend if self.has_gemini else self.frontend_agent,
                 context={"architecture": architecture},
                 emit=emit,
                 phase_name="Frontend",
@@ -150,7 +201,6 @@ class Orchestrator:
             return await self._collaborate(
                 task=goal,
                 groq_agent=self.backend_agent,
-                gemini_agent=self.gemini_backend if self.has_gemini else self.backend_agent,
                 context={"architecture": architecture},
                 emit=emit,
                 phase_name="Backend",
@@ -172,12 +222,12 @@ class Orchestrator:
         await emit("Self Improver", f"**{fe_label}:**\n{fe_eval}\n\n**{be_label}:**\n{be_eval}")
 
         # ── PHASE 5: REVIEW COLLABORATION ────────────────────────────
-        await emit("Collaboration", "🤝 Groq + Gemini reviewen gemeinsam den Code..." if is_de else "🤝 Groq + Gemini reviewing code together...")
+        collab_msg3 = f"🤝 {provider_list} reviewen gemeinsam den Code..." if is_de else f"🤝 {provider_list} reviewing code together..."
+        await emit("Collaboration", collab_msg3)
         combined_code = f"FRONTEND:\n{frontend_code}\n\nBACKEND:\n{backend_code}"
         await self._collaborate(
             task=goal,
             groq_agent=self.reviewer,
-            gemini_agent=self.gemini_reviewer if self.has_gemini else self.reviewer,
             context={"code": combined_code},
             emit=emit,
             phase_name="Review",

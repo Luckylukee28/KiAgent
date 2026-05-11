@@ -22,10 +22,11 @@ const AGENT_COLORS: Record<string, string> = {
   System: 'bg-gray-800 border-gray-600',
 }
 
-// Groq agents get blue tones, Gemini agents get Google-blue/green
 function getAgentColor(agent: string): string {
   if (agent.startsWith('Groq ·')) return 'bg-blue-950 border-blue-500'
   if (agent.startsWith('Gemini ·')) return 'bg-sky-950 border-sky-400'
+  if (agent.startsWith('Mistral ·')) return 'bg-orange-950 border-orange-400'
+  if (agent.startsWith('OpenRouter ·')) return 'bg-emerald-950 border-emerald-400'
   return AGENT_COLORS[agent] ?? 'bg-gray-900 border-gray-600'
 }
 
@@ -49,6 +50,8 @@ const AGENT_ICONS: Record<string, string> = {
 function getAgentIcon(agent: string): string {
   if (agent.startsWith('Groq ·')) return '🦙'
   if (agent.startsWith('Gemini ·')) return '🔷'
+  if (agent.startsWith('Mistral ·')) return '🌊'
+  if (agent.startsWith('OpenRouter ·')) return '🔀'
   return AGENT_ICONS[agent] ?? '🤖'
 }
 

@@ -11,7 +11,7 @@ class FrontendAgent(BaseAgent):
             language=lang,
         )
         response = await self.llm.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": f"{'Architekturentscheidung' if lang == 'de' else 'Architecture'}:\n{architecture}\n\n{'Aufgabe' if lang == 'de' else 'Task'}:\n{task}\n\n{'Schreibe den Frontend-Code' if lang == 'de' else 'Write the frontend code'}:"},
@@ -31,7 +31,7 @@ class BackendCoderAgent(BaseAgent):
             language=lang,
         )
         response = await self.llm.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": f"{'Architekturentscheidung' if lang == 'de' else 'Architecture'}:\n{architecture}\n\n{'Aufgabe' if lang == 'de' else 'Task'}:\n{task}\n\n{'Schreibe den Backend-Code' if lang == 'de' else 'Write the backend code'}:"},

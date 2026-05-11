@@ -15,7 +15,7 @@ class SelfImprover(BaseAgent):
             language=language,
         )
         response = await self.llm.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             messages=[
                 {
                     "role": "system",

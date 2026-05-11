@@ -12,7 +12,7 @@ class ReviewerAgent(BaseAgent):
         )
         review_label = "Überprüfe diesen Code" if lang == "de" else "Review this code"
         response = await self.llm.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": f"{review_label}:\n\n{code}"},

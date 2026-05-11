@@ -1,5 +1,10 @@
-import google.generativeai as genai
+from google import genai
+from google.genai import errors as genai_errors
 from .base import BaseAgent
+
+
+def _make_client(api_key: str) -> genai.Client:
+    return genai.Client(api_key=api_key)
 
 
 class GeminiAgent(BaseAgent):
@@ -7,8 +12,7 @@ class GeminiAgent(BaseAgent):
 
     def __init__(self, name: str, api_key: str, role: str = ""):
         super().__init__(name, llm_client=None)
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel("gemini-1.5-flash")
+        self.client = _make_client(api_key)
         self.role = role
 
     async def execute(self, task: str, context: dict = {}) -> str:
@@ -37,8 +41,18 @@ Be constructive and precise."""
             start_en = f"Task: {task}\n\nYour proposal:"
             prompt = start_de if lang == "de" else start_en
 
-        response = self.model.generate_content(f"{system}\n\n{prompt}")
-        return response.text
+        try:
+            response = self.client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=f"{system}\n\n{prompt}",
+            )
+            return response.text
+        except genai_errors.ClientError as e:
+            if e.code == 429:
+                fallback = "⚠️ Gemini-Kontingent erschöpft – Groq-Ergebnis wird verwendet." if lang == "de" else "⚠️ Gemini quota exhausted – using Groq result."
+            else:
+                fallback = f"⚠️ Gemini nicht verfügbar ({e.code}) – Groq-Ergebnis wird verwendet." if lang == "de" else f"⚠️ Gemini unavailable ({e.code}) – using Groq result."
+            return f"{fallback}\n\n{groq_output}"
 
 
 class GeminiSynthesizer(BaseAgent):
@@ -46,40 +60,59 @@ class GeminiSynthesizer(BaseAgent):
 
     def __init__(self, name: str, api_key: str):
         super().__init__(name, llm_client=None)
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel("gemini-1.5-flash")
+        self.client = _make_client(api_key)
 
     async def execute(self, task: str, context: dict = {}) -> str:
         lang = context.get("language", "de")
-        groq_output = context.get("groq_output", "")
-        gemini_output = context.get("gemini_output", "")
+        # Support both old (groq_output/gemini_output) and new (agent_outputs dict) format
+        agent_outputs: dict = context.get("agent_outputs", {})
+        if not agent_outputs:
+            groq_output = context.get("groq_output", "")
+            gemini_output = context.get("gemini_output", "")
+            if groq_output:
+                agent_outputs["Groq"] = groq_output
+            if gemini_output and not gemini_output.startswith("⚠️"):
+                agent_outputs["Gemini"] = gemini_output
+
+        # Filter out fallback/error outputs
+        valid_outputs = {k: v for k, v in agent_outputs.items() if not v.startswith("⚠️")}
+
+        if not valid_outputs:
+            return list(agent_outputs.values())[0] if agent_outputs else ""
+
+        if len(valid_outputs) == 1:
+            return list(valid_outputs.values())[0]
+
+        outputs_text = "\n\n".join(f"**{name}:**\n{output}" for name, output in valid_outputs.items())
 
         prompt_de = f"""Du bist ein neutraler Synthesizer.
-Kombiniere die besten Teile beider KI-Antworten zu einer optimalen Lösung.
+Kombiniere die besten Teile aller KI-Antworten zu einer optimalen Lösung.
 Antworte auf Deutsch.
 
 Aufgabe: {task}
 
-Groq (Llama) Vorschlag:
-{groq_output}
+{outputs_text}
 
-Gemini Vorschlag:
-{gemini_output}
-
-Kombiniere das Beste aus beiden zu einer finalen, optimierten Antwort:"""
+Kombiniere das Beste aller Vorschläge zu einer finalen, optimierten Antwort:"""
 
         prompt_en = f"""You are a neutral synthesizer.
-Combine the best parts of both AI responses into one optimal solution.
+Combine the best parts of all AI responses into one optimal solution.
 
 Task: {task}
 
-Groq (Llama) proposal:
-{groq_output}
+{outputs_text}
 
-Gemini proposal:
-{gemini_output}
+Combine the best of all proposals into a final, optimized answer:"""
 
-Combine the best of both into a final, optimized answer:"""
-
-        response = self.model.generate_content(prompt_de if lang == "de" else prompt_en)
-        return response.text
+        try:
+            response = self.client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=prompt_de if lang == "de" else prompt_en,
+            )
+            return response.text
+        except genai_errors.ClientError as e:
+            if e.code == 429:
+                fallback = "⚠️ Synthesizer-Kontingent erschöpft." if lang == "de" else "⚠️ Synthesizer quota exhausted."
+            else:
+                fallback = f"⚠️ Synthesizer nicht verfügbar ({e.code})." if lang == "de" else f"⚠️ Synthesizer unavailable ({e.code})."
+            return f"{fallback}\n\n{list(valid_outputs.values())[0]}"

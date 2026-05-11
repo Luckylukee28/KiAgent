@@ -15,7 +15,7 @@ class CoderAgent(BaseAgent):
         user_content = f"{arch_label}:\n{architecture}\n\n{task_label}:\n{task}" if architecture else task
 
         response = await self.llm.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": user_content},

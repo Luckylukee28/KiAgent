@@ -13,7 +13,7 @@ class DebateAgent(BaseAgent):
     async def argue(self, topic: str, previous_arguments: str = "") -> str:
         context = (f"\nVorherige Argumente:\n{previous_arguments}" if self._lang == "de" else f"\nPrevious arguments:\n{previous_arguments}") if previous_arguments else ""
         response = await self.llm.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             messages=[
                 {
                     "role": "system",
@@ -39,7 +39,7 @@ class DebateJudge(BaseAgent):
 
     async def judge(self, topic: str, debate_transcript: str) -> str:
         response = await self.llm.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             messages=[
                 {
                     "role": "system",

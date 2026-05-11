@@ -70,7 +70,7 @@ RISKS:
         system = self.SYSTEM_PROMPT if lang == "de" else self.SYSTEM_PROMPT_EN
         user_msg = f"Erstelle einen vollständigen Projektplan für:\n{task}" if lang == "de" else f"Create a full project plan for:\n{task}"
         response = await self.llm.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": user_msg},
