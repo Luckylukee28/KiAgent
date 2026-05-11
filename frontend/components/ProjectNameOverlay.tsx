@@ -53,7 +53,7 @@ export default function ProjectNameOverlay() {
         {/* New AI project */}
         <div className="space-y-3 mb-5">
           <label className="text-xs text-gray-500 uppercase tracking-wider px-1">
-            {is_de ? 'KI-Projekt starten' : 'Start AI Project'}
+            {is_de ? 'Projekt starten' : 'Start Project'}
           </label>
           <input
             autoFocus
