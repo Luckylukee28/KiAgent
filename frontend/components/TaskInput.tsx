@@ -6,7 +6,7 @@ import { connectWS, disconnectWS } from '@/lib/websocket'
 
 export default function TaskInput() {
   const [input, setInput] = useState('')
-  const { isRunning, setRunning, addMessage, clearMessages, language, setGoal: storeSetGoal, saveCurrentSession, messages, goal } = useAgentStore()
+  const { isRunning, setRunning, addMessage, clearMessages, language, setGoal: storeSetGoal, saveCurrentSession, messages, goal, selectedNodeAgent, setSelectedNodeAgent } = useAgentStore()
   const abortRef = useRef<AbortController | null>(null)
 
   const isFollowUp = !isRunning && messages.length > 0 && !!goal
@@ -25,11 +25,14 @@ export default function TaskInput() {
       setInput('')
       addMessage({ agent: 'System', message: `❓ ${followUp}` })
       try {
-        const context = messages
-          .filter((m) => !m.message.endsWith('...') && m.message.length > 80)
-          .slice(-5)
-          .map((m) => `${m.agent}: ${m.message.slice(0, 300)}`)
-          .join('\n\n')
+        // If a node is selected, use only that node's content as context
+        const context = selectedNodeAgent
+          ? messages.find((m) => m.agent === selectedNodeAgent)?.message ?? ''
+          : messages
+              .filter((m) => !m.message.endsWith('...') && m.message.length > 80)
+              .slice(-5)
+              .map((m) => `${m.agent}: ${m.message.slice(0, 300)}`)
+              .join('\n\n')
         await fetch('http://localhost:8000/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -81,7 +84,21 @@ export default function TaskInput() {
     : (is_de ? 'Wie kann ich dir heute weiterhelfen?' : 'How can I help you today?')
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 border-t border-gray-800">
+    <div className="border-t border-gray-800">
+      {selectedNodeAgent && (
+        <div className="flex items-center gap-2 px-4 pt-2">
+          <span className="text-xs text-gray-400">{is_de ? 'Kontext:' : 'Context:'}</span>
+          <span className="flex items-center gap-1.5 bg-blue-950 border border-blue-500 text-blue-300 text-xs px-2 py-0.5 rounded-full">
+            📌 {selectedNodeAgent}
+          </span>
+          <button
+            onClick={() => setSelectedNodeAgent(null)}
+            className="text-gray-600 hover:text-gray-400 text-sm ml-1 transition-colors"
+            title={is_de ? 'Kontext entfernen' : 'Clear context'}
+          >×</button>
+        </div>
+      )}
+    <div className="flex items-center gap-3 px-4 py-3">
       {isFollowUp && !isRunning && (
         <div className="text-xs text-gray-500 whitespace-nowrap hidden sm:block">
           💬 {goal.length > 30 ? goal.slice(0, 30) + '…' : goal}
@@ -115,6 +132,7 @@ export default function TaskInput() {
           </svg>
         </button>
       )}
+    </div>
     </div>
   )
 }

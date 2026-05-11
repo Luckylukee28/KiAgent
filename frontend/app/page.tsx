@@ -5,6 +5,7 @@ import AgentChat from '@/components/AgentChat'
 import TaskInput from '@/components/TaskInput'
 import MindMap from '@/components/MindMap'
 import NavMenu from '@/components/NavMenu'
+import ProjectNameOverlay from '@/components/ProjectNameOverlay'
 
 export default function Home() {
   const [view, setView] = useState<'chat' | 'mindmap'>('mindmap')
@@ -15,8 +16,9 @@ export default function Home() {
         <NavMenu view={view} onViewChange={setView} />
       </div>
 
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden relative">
         {view === 'chat' ? <AgentChat /> : <MindMap />}
+        <ProjectNameOverlay />
       </div>
 
       <TaskInput />

@@ -64,6 +64,14 @@ interface AgentStore {
   loadSession: (session: SavedSession) => void
   deleteSession: (id: string) => void
   newProject: () => void
+  selectedNodeAgent: string | null
+  setSelectedNodeAgent: (agent: string | null) => void
+  projectName: string
+  setProjectName: (name: string) => void
+  zipNodes: import('@xyflow/react').Node[]
+  zipEdges: import('@xyflow/react').Edge[]
+  setZipTree: (nodes: import('@xyflow/react').Node[], edges: import('@xyflow/react').Edge[]) => void
+  clearZip: () => void
 }
 
 export const useAgentStore = create<AgentStore>((set, get) => ({
@@ -74,6 +82,10 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
   language: 'de',
   goal: '',
   sessions: loadSessions(),
+  selectedNodeAgent: null,
+  projectName: '',
+  zipNodes: [],
+  zipEdges: [],
 
   addMessage: (msg) =>
     set((state) => ({
@@ -114,9 +126,14 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     set({ sessions: updated })
   },
 
+  setSelectedNodeAgent: (agent) => set({ selectedNodeAgent: agent }),
+  setProjectName: (name) => set({ projectName: name }),
+  setZipTree: (zipNodes, zipEdges) => set({ zipNodes, zipEdges }),
+  clearZip: () => set({ zipNodes: [], zipEdges: [] }),
+
   newProject: () => {
     const { saveCurrentSession } = get()
     saveCurrentSession()
-    set({ messages: [], goal: '', status: 'idle', isRunning: false, activeAgent: '' })
+    set({ messages: [], goal: '', status: 'idle', isRunning: false, activeAgent: '', projectName: '', zipNodes: [], zipEdges: [] })
   },
 }))
