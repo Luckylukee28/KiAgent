@@ -1,4 +1,5 @@
 from .base import BaseAgent
+from .groq_utils import call_groq_with_retry
 
 
 class ArchitectAgent(BaseAgent):
@@ -9,12 +10,14 @@ class ArchitectAgent(BaseAgent):
             en="You are an expert software architect. Analyze the requirements and propose a clean, scalable architecture. Be concise and specific. Output structured plans.",
             language=lang,
         )
-        response = await self.llm.chat.completions.create(
+        return await call_groq_with_retry(
+            self.llm,
             model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": task},
             ],
             max_tokens=1000,
+            lang=lang,
+            agent_name=self.name,
         )
-        return response.choices[0].message.content

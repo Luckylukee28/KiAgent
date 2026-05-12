@@ -16,6 +16,9 @@ groq_client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
 google_api_key = os.getenv("GOOGLE_API_KEY", "")
 mistral_api_key = os.getenv("MISTRAL_API_KEY", "")
 openrouter_api_key = os.getenv("OPENROUTER_API_KEY", "")
+openrouter_reasoning_key = os.getenv("OPENROUTER_REASONING_API_KEY", "")
+# Reasoning agent is active if a dedicated key is set, OR the flag is on
+enable_reasoning = bool(openrouter_reasoning_key) or os.getenv("OPENROUTER_REASONING", "").lower() in ("1", "true", "yes", "on")
 
 manager = ConnectionManager()
 
@@ -61,6 +64,8 @@ async def run_task(request: TaskRequest):
         google_api_key=google_api_key,
         mistral_api_key=mistral_api_key,
         openrouter_api_key=openrouter_api_key,
+        openrouter_reasoning_key=openrouter_reasoning_key,
+        enable_reasoning=enable_reasoning,
     )
     results = await orchestrator.run_pipeline(
         goal=request.goal,
@@ -77,6 +82,8 @@ async def chat(request: ChatRequest):
         google_api_key=google_api_key,
         mistral_api_key=mistral_api_key,
         openrouter_api_key=openrouter_api_key,
+        openrouter_reasoning_key=openrouter_reasoning_key,
+        enable_reasoning=enable_reasoning,
     )
     result = await orchestrator.chat(
         message=request.message,

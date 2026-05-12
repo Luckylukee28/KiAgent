@@ -1,18 +1,34 @@
 'use client'
 
-import { useRef, useState } from 'react'
-import { useAgentStore } from '@/lib/store'
+import { useEffect, useRef, useState } from 'react'
+import { useAgentStore, type SavedSession } from '@/lib/store'
 import { parseZip } from '@/lib/zipParser'
 
 export default function ProjectNameOverlay() {
-  const { projectName, setProjectName, setZipTree, language } = useAgentStore()
+  const { projectName, setProjectName, setZipTree, language, sessions, loadSession, deleteSession } = useAgentStore()
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [mounted, setMounted] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const is_de = language === 'de'
 
+  // Avoid hydration mismatch: sessions come from localStorage (client-only)
+  useEffect(() => { setMounted(true) }, [])
+
   if (projectName) return null
+
+  const recentSessions = mounted ? sessions.slice(0, 5) : []
+
+  function handleLoad(session: SavedSession) {
+    loadSession(session)
+    setProjectName(session.goal.slice(0, 60) || 'Projekt')
+  }
+
+  function handleDelete(id: string, e: React.MouseEvent) {
+    e.stopPropagation()
+    deleteSession(id)
+  }
 
   async function handleSubmit() {
     if (!input.trim()) return
@@ -35,9 +51,9 @@ export default function ProjectNameOverlay() {
   }
 
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center"
+    <div className="absolute inset-0 z-50 flex items-center justify-center overflow-y-auto py-8"
          style={{ background: 'rgba(3,9,18,0.88)', backdropFilter: 'blur(8px)' }}>
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl p-8 w-full max-w-md shadow-2xl mx-4">
+      <div className="bg-gray-900 border border-gray-700 rounded-2xl p-8 w-full max-w-md shadow-2xl mx-4 my-auto">
 
         {/* Header */}
         <div className="text-center mb-7">
@@ -110,6 +126,53 @@ export default function ProjectNameOverlay() {
             {is_de ? 'Die Ordnerstruktur wird als Mind Map dargestellt.' : 'Folder structure will be shown as a mind map.'}
           </p>
         </div>
+
+        {/* Recent chats / sessions */}
+        {recentSessions.length > 0 && (
+          <>
+            <div className="flex items-center gap-3 my-5">
+              <div className="flex-1 h-px bg-gray-800" />
+              <span className="text-gray-600 text-xs">{is_de ? 'oder fortsetzen' : 'or continue'}</span>
+              <div className="flex-1 h-px bg-gray-800" />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs text-gray-500 uppercase tracking-wider px-1">
+                {is_de ? 'Letzte Chats' : 'Recent Chats'}
+              </label>
+              <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                {recentSessions.map((s) => (
+                  <div
+                    key={s.id}
+                    onClick={() => handleLoad(s)}
+                    className="group flex items-start gap-2 p-3 rounded-xl bg-gray-800/60 hover:bg-gray-800 border border-gray-700/50 hover:border-blue-500/50 cursor-pointer transition-all"
+                  >
+                    <span className="text-base mt-0.5">💬</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-gray-200 truncate font-medium">
+                        {s.goal}
+                      </div>
+                      <div className="text-[10px] text-gray-500 mt-0.5 flex items-center gap-2">
+                        <span>
+                          {new Date(s.savedAt).toLocaleDateString(is_de ? 'de-DE' : 'en-US', {
+                            day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+                          })}
+                        </span>
+                        <span>·</span>
+                        <span>{s.messages.length} {is_de ? 'Nachrichten' : 'messages'}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => handleDelete(s.id, e)}
+                      className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 text-lg leading-none p-1 transition-all"
+                      title={is_de ? 'Löschen' : 'Delete'}
+                    >×</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )

@@ -22,10 +22,10 @@ import CodeBlock from './CodeBlock'
 const CX = 600
 const CY = 380
 const GOLDEN_ANGLE = 137.508 * (Math.PI / 180)
-const BASE_RADIUS = 320       // distance center → first agent
-const RING_STEP   = 160       // extra radius per spiral ring
-const SUB_RADIAL  = 170       // distance agent center → sub-node center
-const SUB_PERP    = 38        // perpendicular spacing between sub-nodes
+const BASE_RADIUS = 360       // distance center → first agent
+const RING_STEP   = 180       // extra radius per spiral ring
+const SUB_RADIAL  = 200       // distance agent center → sub-node center
+const SUB_PERP    = 42        // perpendicular spacing between sub-nodes
 
 // Centered hidden handle (lets edges connect from any direction)
 const H_CENTER: React.CSSProperties = {
@@ -43,6 +43,7 @@ function getAgentStyle(agent: string) {
   if (agent.startsWith('Groq'))        return { bg: '#0c1a3e', color: '#3b82f6', icon: '🦙' }
   if (agent.startsWith('Gemini'))      return { bg: '#0c2340', color: '#38bdf8', icon: '🔷' }
   if (agent.startsWith('Mistral'))     return { bg: '#3a1800', color: '#fb923c', icon: '🌊' }
+  if (agent.startsWith('OpenRouter Reasoning')) return { bg: '#1e1b4b', color: '#a78bfa', icon: '🧠' }
   if (agent.startsWith('OpenRouter'))  return { bg: '#0a2e1a', color: '#34d399', icon: '🔀' }
   if (agent === 'Judge')               return { bg: '#3b2a00', color: '#eab308', icon: '⚖️' }
   if (agent === 'Agent A')             return { bg: '#2d1b00', color: '#f97316', icon: '🔵' }
@@ -63,6 +64,7 @@ function getAgentMeta(agent: string): AgentMeta {
   if (agent.startsWith('Gemini') && agent !== 'Synthesizer')
                                        return { role: 'Generiert Code (analytisch)', category: 'CODER',      categoryColor: '#3b82f6' }
   if (agent.startsWith('Mistral'))     return { role: 'Generiert Code (kreativ)',    category: 'CODER',      categoryColor: '#3b82f6' }
+  if (agent.startsWith('OpenRouter Reasoning')) return { role: 'Generiert Code (mit Reasoning)', category: 'CODER',      categoryColor: '#3b82f6' }
   if (agent.startsWith('OpenRouter'))  return { role: 'Generiert Code (DeepSeek)',   category: 'CODER',      categoryColor: '#3b82f6' }
   if (agent === 'Synthesizer')         return { role: 'Kombiniert alle Outputs',     category: 'SYNTHESE',   categoryColor: '#a78bfa' }
   if (agent === 'Judge')               return { role: 'Bewertet beste Lösung',       category: 'REVIEW',     categoryColor: '#eab308' }
@@ -212,23 +214,24 @@ function parseMessage(message: string) {
   return parts.length > 0 ? parts : [{ type: 'text' as const, content: message }]
 }
 
-// ─── Center node ──────────────────────────────────────────────────────────────
+// ─── Center node (Coggle-style: rounded gray rectangle) ──────────────────────
 function CenterNode({ data }: NodeProps) {
   const d = data as any
-  const color = d.hasGoal ? '#22c55e' : '#3b82f6'
+  const color = d.hasGoal ? '#22c55e' : '#94a3b8'
   return (
     <div
       style={{
-        background: '#0d1117',
+        background: '#374151',
         border: `2px solid ${color}`,
-        boxShadow: `0 0 28px ${color}55`,
-        borderRadius: 16,
-        padding: '12px 26px',
+        boxShadow: `0 6px 20px rgba(0,0,0,0.5), 0 0 24px ${color}44`,
+        borderRadius: 10,
+        padding: '14px 28px',
         color: 'white',
         fontWeight: 700,
-        fontSize: 15,
-        minWidth: 140,
-        maxWidth: 200,
+        fontSize: 16,
+        letterSpacing: 0.3,
+        minWidth: 100,
+        maxWidth: 220,
         textAlign: 'center',
         cursor: 'default',
         userSelect: 'none',
@@ -242,33 +245,39 @@ function CenterNode({ data }: NodeProps) {
   )
 }
 
-// ─── Agent node (pill with category + role) ───────────────────────────────────
+// ─── Agent node (Coggle-style: text with colored underline branch) ───────────
 function AgentNode({ data }: NodeProps) {
   const d = data as any
   return (
     <div
       style={{
-        background: d.bg,
-        border: d.isSelected ? `2px solid #ffffff` : `1.5px solid ${d.color}`,
-        boxShadow: d.isSelected
-          ? `0 0 0 3px ${d.color}88, 0 0 20px ${d.color}66`
-          : `0 0 14px ${d.color}44`,
-        borderRadius: 12,
-        padding: '8px 12px 9px',
+        background: d.isSelected ? `${d.color}22` : 'transparent',
+        borderBottom: `3px solid ${d.color}`,
+        boxShadow: d.isSelected ? `inset 0 0 0 1.5px ${d.color}` : 'none',
+        borderRadius: 6,
+        padding: '6px 12px 5px',
         width: 200,
         color: 'white',
         cursor: 'pointer',
         opacity: d.thinking ? 0.55 : 1,
         animation: 'nodeAppear 0.45s cubic-bezier(0.34,1.56,0.64,1)',
-        transition: 'border-color 0.2s, box-shadow 0.2s',
+        transition: 'background 0.2s, box-shadow 0.2s',
       }}
     >
       <Handle type="target" position={Position.Top} id="in"  style={H_CENTER} />
       <Handle type="source" position={Position.Top} id="out" style={H_CENTER} />
 
-      {/* Name + status */}
-      <div style={{ fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
-        <span>{d.icon}</span>
+      {/* Name */}
+      <div style={{
+        fontWeight: 700,
+        fontSize: 14,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        color: d.color,
+        textShadow: `0 0 8px ${d.color}55`,
+      }}>
+        <span style={{ fontSize: 13 }}>{d.icon}</span>
         <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {d.agentName}
         </span>
@@ -276,27 +285,26 @@ function AgentNode({ data }: NodeProps) {
           ? <span style={{ color: '#6b7280', fontSize: 10, animation: 'pulse 1.2s infinite' }}>•••</span>
           : d.isSelected
             ? <span style={{ fontSize: 9 }}>📌</span>
-            : <span style={{ color: '#4b5563', fontSize: 9 }}>↗</span>
+            : null
         }
       </div>
 
       {/* Role */}
-      <div style={{ fontSize: 9.5, color: d.color, fontStyle: 'italic', marginBottom: d.thinking ? 0 : 4 }}>
+      <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', fontStyle: 'italic', marginTop: 1 }}>
         {d.role}
       </div>
 
-      {/* Preview */}
+      {/* Preview (tiny) */}
       {!d.thinking && (
         <div style={{
-          fontSize: 10,
-          color: '#9ca3af',
-          lineHeight: 1.4,
+          fontSize: 9.5,
+          color: 'rgba(255,255,255,0.4)',
+          lineHeight: 1.35,
           display: '-webkit-box',
           WebkitLineClamp: 2,
           WebkitBoxOrient: 'vertical',
           overflow: 'hidden',
-          paddingTop: 4,
-          borderTop: '1px solid rgba(255,255,255,0.06)',
+          marginTop: 3,
         } as React.CSSProperties}>
           {d.preview}
         </div>
@@ -305,22 +313,27 @@ function AgentNode({ data }: NodeProps) {
   )
 }
 
-// ─── Smooth curve edge (works in any direction) ──────────────────────────────
+// ─── Smooth curve edge (Coggle-style organic curve) ──────────────────────────
 function SmoothEdge({ sourceX, sourceY, targetX, targetY, style }: EdgeProps) {
+  // Two control points roughly 1/3 and 2/3 along, each offset perpendicular
+  // → S-curve that feels hand-drawn rather than a stiff arc.
   const dx = targetX - sourceX
   const dy = targetY - sourceY
   const len = Math.sqrt(dx * dx + dy * dy) || 1
-  const offset = len * 0.12
+  const offset = len * 0.18
   const px = (-dy / len) * offset
   const py = ( dx / len) * offset
-  const mx = (sourceX + targetX) / 2
-  const my = (sourceY + targetY) / 2
+  const c1x = sourceX + dx * 0.33 + px * 0.5
+  const c1y = sourceY + dy * 0.33 + py * 0.5
+  const c2x = sourceX + dx * 0.66 + px * 0.5
+  const c2y = sourceY + dy * 0.66 + py * 0.5
   return (
     <path
-      d={`M ${sourceX} ${sourceY} Q ${mx + px} ${my + py} ${targetX} ${targetY}`}
+      d={`M ${sourceX} ${sourceY} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${targetX} ${targetY}`}
       fill="none"
       style={style}
       strokeLinecap="round"
+      strokeLinejoin="round"
     />
   )
 }
@@ -346,29 +359,29 @@ function NaturalEdge({ sourceX, sourceY, targetX, targetY, style, markerEnd }: E
   )
 }
 
-// ─── Work area node (small pill: Frontend / Backend / etc.) ──────────────────
+// ─── Work area (Coggle-style: leaf text with thin colored underline) ─────────
 function WorkAreaNode({ data }: NodeProps) {
   const d = data as any
   return (
     <div
       style={{
-        background: '#0d1117',
-        border: `1px solid ${d.color}`,
-        boxShadow: `0 0 6px ${d.color}33`,
-        borderRadius: 999,
-        padding: '4px 11px',
-        color: 'white',
-        fontSize: 10,
+        background: 'transparent',
+        borderBottom: `2px solid ${d.color}`,
+        padding: '3px 9px 2px',
+        color: d.color,
+        fontSize: 11,
+        fontWeight: 600,
         display: 'flex',
         alignItems: 'center',
         gap: 5,
         width: 115,
+        textShadow: `0 0 6px ${d.color}55`,
         animation: 'nodeAppear 0.4s cubic-bezier(0.34,1.56,0.64,1)',
       }}
     >
       <Handle type="target" position={Position.Top} id="in" style={H_CENTER} />
       <span style={{ flexShrink: 0 }}>{d.icon}</span>
-      <span style={{ fontWeight: 600, color: d.color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {d.label}
       </span>
     </div>
@@ -406,8 +419,9 @@ function ZipNode({ data }: NodeProps) {
   )
 }
 
-const nodeTypes = { center: CenterNode, agent: AgentNode, zipNode: ZipNode, workArea: WorkAreaNode }
-const edgeTypes  = { smooth: SmoothEdge, natural: NaturalEdge }
+// Stable, module-scoped references (React Flow expects identity equality)
+const NODE_TYPES = Object.freeze({ center: CenterNode, agent: AgentNode, zipNode: ZipNode, workArea: WorkAreaNode })
+const EDGE_TYPES  = Object.freeze({ smooth: SmoothEdge, natural: NaturalEdge })
 
 // ─── Detail Panel ─────────────────────────────────────────────────────────────
 function DetailPanel({ agent, message, color, icon, onClose }: {
@@ -634,7 +648,7 @@ function MindMapInner() {
         target: nodeId,
         targetHandle: 'in',
         type: 'smooth',
-        style: { stroke: style.color, strokeWidth: 2, opacity: 0.6 },
+        style: { stroke: style.color, strokeWidth: 4.5, opacity: 0.88 },
       })
 
       // ── Work-area sub-nodes fan out from the agent away from center ────
@@ -669,7 +683,7 @@ function MindMapInner() {
             target: subId,
             targetHandle: 'in',
             type: 'smooth',
-            style: { stroke: wa.color, strokeWidth: 1.3, opacity: 0.55 },
+            style: { stroke: style.color, strokeWidth: 2.2, opacity: 0.7 },
           })
         })
       }
@@ -694,9 +708,9 @@ function MindMapInner() {
         type: 'smooth',
         style: {
           stroke: c.color,
-          strokeWidth: 1.2,
-          opacity: 0.45,
-          strokeDasharray: '5 4',
+          strokeWidth: 1,
+          opacity: 0.3,
+          strokeDasharray: '3 5',
         },
       })
     })
@@ -723,8 +737,8 @@ function MindMapInner() {
         <ReactFlow
           nodes={nodes}
           edges={edges}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
+          nodeTypes={NODE_TYPES}
+          edgeTypes={EDGE_TYPES}
           onNodeClick={handleNodeClick}
           fitView
           fitViewOptions={{ padding: 0.25 }}

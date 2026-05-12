@@ -1,4 +1,5 @@
 from .base import BaseAgent
+from .groq_utils import call_groq_with_retry
 
 
 class ReviewerAgent(BaseAgent):
@@ -11,12 +12,14 @@ class ReviewerAgent(BaseAgent):
             language=lang,
         )
         review_label = "Überprüfe diesen Code" if lang == "de" else "Review this code"
-        response = await self.llm.chat.completions.create(
+        return await call_groq_with_retry(
+            self.llm,
             model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": f"{review_label}:\n\n{code}"},
             ],
             max_tokens=1000,
+            lang=lang,
+            agent_name=self.name,
         )
-        return response.choices[0].message.content

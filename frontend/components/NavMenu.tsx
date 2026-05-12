@@ -3,12 +3,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAgentStore, SavedSession } from '@/lib/store'
 
+type View = 'chat' | 'mindmap' | 'workspace'
+
 interface Props {
-  view: 'chat' | 'mindmap'
-  onViewChange: (v: 'chat' | 'mindmap') => void
+  view: View
+  onViewChange: (v: View) => void
+  onOpenViewer: () => void
 }
 
-export default function NavMenu({ view, onViewChange }: Props) {
+export default function NavMenu({ view, onViewChange, onOpenViewer }: Props) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const { sessions, loadSession, deleteSession, language, setLanguage, newProject } = useAgentStore()
@@ -24,7 +27,12 @@ export default function NavMenu({ view, onViewChange }: Props) {
 
   function handleLoad(session: SavedSession) {
     loadSession(session)
-    onViewChange('mindmap')
+    onViewChange('workspace')
+    setOpen(false)
+  }
+
+  function handleWorkspace() {
+    onViewChange('workspace')
     setOpen(false)
   }
 
@@ -83,11 +91,18 @@ export default function NavMenu({ view, onViewChange }: Props) {
               <span>{is_de ? 'Neues Projekt' : 'New Project'}</span>
             </button>
             <button
+              onClick={handleWorkspace}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${view === 'workspace' ? 'bg-blue-600/30 text-blue-300' : 'text-gray-300 hover:bg-gray-800'}`}
+            >
+              <span className="text-base">◇</span>
+              <span className="font-medium">{is_de ? 'Workspace' : 'Workspace'}</span>
+            </button>
+            <button
               onClick={handleNewMindMap}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${view === 'mindmap' ? 'bg-blue-600/30 text-blue-300' : 'text-gray-300 hover:bg-gray-800'}`}
             >
               <span className="text-base">🧠</span>
-              <span className="font-medium">{is_de ? 'Mind Map' : 'Mind Map'}</span>
+              <span className="font-medium">{is_de ? 'Mind Map (klassisch)' : 'Mind Map (classic)'}</span>
             </button>
             <button
               onClick={handleChat}
@@ -95,6 +110,13 @@ export default function NavMenu({ view, onViewChange }: Props) {
             >
               <span className="text-base">💬</span>
               <span className="font-medium">{is_de ? 'Chat anzeigen' : 'Show Chat'}</span>
+            </button>
+            <button
+              onClick={() => { onOpenViewer(); setOpen(false) }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-purple-300 hover:bg-gray-800"
+            >
+              <span className="text-base">👁</span>
+              <span className="font-medium">{is_de ? 'Code Viewer' : 'Code Viewer'}</span>
             </button>
           </div>
 

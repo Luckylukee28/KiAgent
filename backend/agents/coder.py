@@ -1,4 +1,5 @@
 from .base import BaseAgent
+from .groq_utils import call_groq_with_retry
 
 
 class CoderAgent(BaseAgent):
@@ -14,12 +15,14 @@ class CoderAgent(BaseAgent):
         task_label = "Aufgabe" if lang == "de" else "Task"
         user_content = f"{arch_label}:\n{architecture}\n\n{task_label}:\n{task}" if architecture else task
 
-        response = await self.llm.chat.completions.create(
+        return await call_groq_with_retry(
+            self.llm,
             model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": user_content},
             ],
-            max_tokens=2000,
+            max_tokens=1500,
+            lang=lang,
+            agent_name=self.name,
         )
-        return response.choices[0].message.content

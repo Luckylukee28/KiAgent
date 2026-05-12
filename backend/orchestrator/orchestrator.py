@@ -4,18 +4,28 @@ from typing import Callable
 from agents.architect import ArchitectAgent
 from agents.coder import CoderAgent
 from agents.reviewer import ReviewerAgent
-from agents.debate_agent import DebateAgent, DebateJudge
+from agents.debate_agent import DebateJudge
 from agents.parallel_agents import FrontendAgent, BackendCoderAgent
 from agents.pm_agent import ProjectManagerAgent
 from agents.self_improver import SelfImprover
 from agents.gemini_agent import GeminiAgent, GeminiSynthesizer
 from agents.mistral_agent import MistralAgent
 from agents.openrouter_agent import OpenRouterAgent
+from agents.openrouter_reasoning_agent import OpenRouterReasoningAgent
+from agents.groq_utils import call_groq_with_retry
 from memory.memory_manager import init_db, store_memory, search_memories
 
 
 class Orchestrator:
-    def __init__(self, groq_client, google_api_key: str = "", mistral_api_key: str = "", openrouter_api_key: str = ""):
+    def __init__(
+        self,
+        groq_client,
+        google_api_key: str = "",
+        mistral_api_key: str = "",
+        openrouter_api_key: str = "",
+        openrouter_reasoning_key: str = "",
+        enable_reasoning: bool = False,
+    ):
         self.groq = groq_client
 
         # Groq agents (always available)
@@ -44,6 +54,13 @@ class Orchestrator:
         if self.has_openrouter:
             self.openrouter = OpenRouterAgent("OpenRouter", openrouter_api_key)
 
+        # OpenRouter with reasoning (more thorough but more tokens) — uses its own key
+        # if provided, otherwise falls back to shared key when reasoning is enabled.
+        reasoning_key = openrouter_reasoning_key or (openrouter_api_key if enable_reasoning else "")
+        self.has_reasoning = bool(reasoning_key)
+        if self.has_reasoning:
+            self.openrouter_reasoning = OpenRouterReasoningAgent("OpenRouter Reasoning", reasoning_key)
+
     def _active_providers(self) -> list[str]:
         providers = ["Groq"]
         if self.has_gemini:
@@ -52,7 +69,73 @@ class Orchestrator:
             providers.append("Mistral")
         if self.has_openrouter:
             providers.append("OpenRouter")
+        if self.has_reasoning:
+            providers.append("OpenRouter Reasoning")
         return providers
+
+    async def _debate_argue(self, provider: str, topic: str, transcript: str, lang: str) -> str:
+        """Each AI model gives ONE short argument on the topic, seeing prior speakers."""
+        is_de = lang == "de"
+        position_hint = "(noch leer — du bist der Erste)" if is_de else "(empty — you go first)"
+        prior = transcript.strip() if transcript.strip() else position_hint
+
+        system = (
+            f"Du bist {provider} in einer Architektur-Debatte. "
+            f"Vertrete DEINE eigene Meinung in MAX 2 kurzen Sätzen. "
+            f"Falls Vorredner sprachen: gehe knapp auf sie ein (zustimmen oder widersprechen). "
+            f"Keine Floskeln, kein Wiederholen der Frage."
+            if is_de else
+            f"You are {provider} in an architecture debate. "
+            f"Argue YOUR own view in MAX 2 short sentences. "
+            f"If others spoke before: briefly engage with them (agree or disagree). "
+            f"No fluff, no restating the question."
+        )
+        user_msg = (
+            f"Aufgabe: {topic}\n\nBisherige Debatte:\n{prior}\n\nDein Argument:"
+            if is_de else
+            f"Task: {topic}\n\nDebate so far:\n{prior}\n\nYour argument:"
+        )
+
+        try:
+            if provider == "Groq":
+                return await call_groq_with_retry(
+                    self.groq, model="llama-3.1-8b-instant",
+                    messages=[{"role": "system", "content": system}, {"role": "user", "content": user_msg}],
+                    max_tokens=120, lang=lang, agent_name=provider,
+                )
+            if provider == "Gemini":
+                from google.genai import errors as genai_errors
+                try:
+                    resp = self.gemini.client.models.generate_content(
+                        model="gemini-2.0-flash",
+                        contents=f"{system}\n\n{user_msg}",
+                    )
+                    return (resp.text or "").strip()
+                except genai_errors.ClientError as e:
+                    return f"⚠️ Gemini ({e.code}) – übersprungen." if is_de else f"⚠️ Gemini ({e.code}) – skipped."
+            if provider == "Mistral":
+                try:
+                    resp = await self.mistral.client.chat.complete_async(
+                        model="mistral-small-latest",
+                        messages=[{"role": "user", "content": f"{system}\n\n{user_msg}"}],
+                        max_tokens=120,
+                    )
+                    return (resp.choices[0].message.content or "").strip()
+                except Exception as e:
+                    return f"⚠️ Mistral – {type(e).__name__}"
+            if provider == "OpenRouter":
+                try:
+                    resp = await self.openrouter.client.chat.completions.create(
+                        model="baidu/cobuddy:free",
+                        messages=[{"role": "system", "content": system}, {"role": "user", "content": user_msg}],
+                        max_tokens=120,
+                    )
+                    return (resp.choices[0].message.content or "").strip()
+                except Exception as e:
+                    return f"⚠️ OpenRouter – {type(e).__name__}"
+        except Exception as e:
+            return f"⚠️ {provider}-Fehler: {type(e).__name__}"
+        return ""
 
     async def _collaborate(
         self,
@@ -81,6 +164,8 @@ class Orchestrator:
             tasks.append(run_agent(self.mistral, f"Mistral · {phase_name}", "Mistral"))
         if self.has_openrouter:
             tasks.append(run_agent(self.openrouter, f"OpenRouter · {phase_name}", "OpenRouter"))
+        if self.has_reasoning:
+            tasks.append(run_agent(self.openrouter_reasoning, f"OpenRouter Reasoning · {phase_name}", "OpenRouter Reasoning"))
 
         results = await asyncio.gather(*tasks)
         agent_outputs = dict(results)
@@ -101,7 +186,11 @@ class Orchestrator:
     async def chat(
         self, message: str, context: str = "", broadcast=None, language: str = "de"
     ) -> str:
-        """Single follow-up question — all agents collaborate, then synthesize."""
+        """Single follow-up question — agents collaborate, then synthesize.
+
+        The previous-conversation context is baked into the task string so EVERY
+        agent sees it, regardless of which context keys their execute() reads.
+        """
         results = {}
         is_de = language == "de"
 
@@ -110,8 +199,37 @@ class Orchestrator:
             if broadcast:
                 await broadcast({"agent": agent, "message": content})
 
-        task = message
-        ctx = {"previous_context": context} if context else {}
+        # Cap context to keep token usage reasonable (~5k chars ≈ 1.5k tokens)
+        MAX_CTX = 5000
+        trimmed_context = context[-MAX_CTX:] if len(context) > MAX_CTX else context
+
+        if trimmed_context.strip():
+            if is_de:
+                task = (
+                    "BISHERIGER PROJEKT-KONTEXT (vorherige Agenten-Ausgaben):\n"
+                    "─────────────────────────────────────────────────────\n"
+                    f"{trimmed_context}\n"
+                    "─────────────────────────────────────────────────────\n\n"
+                    f"FOLGEFRAGE DES NUTZERS:\n{message}\n\n"
+                    "Wichtig: Beziehe dich konkret auf den Kontext oben. "
+                    "Setze die Folgefrage direkt um — gib funktionierenden Code/Lösung, "
+                    "nicht nur eine Erklärung. Falls Code geändert werden soll, "
+                    "zeige die geänderte Stelle vollständig."
+                )
+            else:
+                task = (
+                    "PRIOR PROJECT CONTEXT (previous agent outputs):\n"
+                    "─────────────────────────────────────────────\n"
+                    f"{trimmed_context}\n"
+                    "─────────────────────────────────────────────\n\n"
+                    f"USER FOLLOW-UP:\n{message}\n\n"
+                    "Important: Reference the context above directly. "
+                    "Implement the follow-up — produce working code/solution, "
+                    "not just an explanation. If code needs to change, show the "
+                    "modified section in full."
+                )
+        else:
+            task = message
 
         label = "💬 " + ("Folgefrage" if is_de else "Follow-up")
         await emit(label, "Alle Agenten bearbeiten deine Frage..." if is_de else "All agents working on your question...")
@@ -119,7 +237,7 @@ class Orchestrator:
         result = await self._collaborate(
             task=task,
             groq_agent=self.coder,
-            context=ctx,
+            context={"is_follow_up": True},
             emit=emit,
             phase_name="Folgefrage" if is_de else "Follow-up",
             lang=language,
@@ -152,22 +270,37 @@ class Orchestrator:
         await emit("Project Manager", project_plan)
         await store_memory("Project Manager", goal, project_plan)
 
-        # ── PHASE 1: DEBATE ──────────────────────────────────────────
-        await emit("Debate", "Architektur-Debatte startet..." if is_de else "Starting architecture debate...")
-        pos_a = "Monolithische Architektur für Einfachheit und schnelle MVP-Entwicklung" if is_de else "Monolithic architecture for simplicity and faster MVP delivery"
-        pos_b = "Microservices-Architektur für Skalierbarkeit und Trennung der Zuständigkeiten" if is_de else "Microservices architecture for scalability and separation of concerns"
-        agent_a = DebateAgent("Agent A", self.groq, pos_a, language=lang)
-        agent_b = DebateAgent("Agent B", self.groq, pos_b, language=lang)
+        # ── PHASE 1: MULTI-MODEL DEBATE ──────────────────────────────
+        # Each available AI model gives its own architectural opinion in turn,
+        # seeing the previous speakers. Real different models = real different
+        # views, not two roles played by the same Llama.
+        debaters = ["Groq"]
+        if self.has_gemini:     debaters.append("Gemini")
+        if self.has_mistral:    debaters.append("Mistral")
+        if self.has_openrouter: debaters.append("OpenRouter")
+
+        intro = (
+            f"🗣 Debatte ({len(debaters)} KI-Modelle): "
+            + " → ".join(debaters)
+            + "..."
+            if is_de else
+            f"🗣 Debate ({len(debaters)} AI models): "
+            + " → ".join(debaters)
+            + "..."
+        )
+        await emit("Debate", intro)
         self.judge._lang = lang
 
-        arg_a = await agent_a.argue(goal)
-        await emit("Agent A", arg_a)
-        arg_b = await agent_b.argue(goal, previous_arguments=f"Agent A: {arg_a}")
-        await emit("Agent B", arg_b)
-        arg_a2 = await agent_a.argue(goal, previous_arguments=f"Agent A: {arg_a}\nAgent B: {arg_b}")
-        await emit("Agent A", arg_a2)
-        transcript = f"Agent A: {arg_a}\nAgent B: {arg_b}\nAgent A: {arg_a2}"
-        verdict = await self.judge.judge(goal, transcript)
+        phase_label = "Debatte" if is_de else "Debate"
+        transcript_lines: list[str] = []
+        for speaker in debaters:
+            arg = await self._debate_argue(speaker, goal, "\n".join(transcript_lines), lang)
+            # Use phase suffix so the debate contribution shows as a separate
+            # sub-node under the base agent (alongside Frontend/Backend phases)
+            await emit(f"{speaker} · {phase_label}", arg)
+            transcript_lines.append(f"{speaker}: {arg}")
+
+        verdict = await self.judge.judge(goal, "\n".join(transcript_lines))
         await emit("Judge", verdict)
 
         # ── PHASE 2: ARCHITECTURE COLLABORATION ──────────────────────

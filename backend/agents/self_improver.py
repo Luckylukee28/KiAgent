@@ -1,4 +1,5 @@
 from .base import BaseAgent
+from .groq_utils import call_groq_with_retry
 from memory.memory_manager import store_learning, get_best_patterns
 
 
@@ -14,21 +15,17 @@ class SelfImprover(BaseAgent):
             en="You are a quality evaluator for AI-generated outputs. Score from 1-10 in English.\nFormat:\nSCORE: [number]\nSTRENGTHS: [one sentence]\nIMPROVEMENTS: [one or two suggestions]",
             language=language,
         )
-        response = await self.llm.chat.completions.create(
+        evaluation = await call_groq_with_retry(
+            self.llm,
             model="llama-3.1-8b-instant",
             messages=[
-                {
-                    "role": "system",
-                    "content": system,
-                },
-                {
-                    "role": "user",
-                    "content": f"Agent: {agent_name}\nTask: {task}\n\nOutput to evaluate:\n{output[:1500]}",
-                },
+                {"role": "system", "content": system},
+                {"role": "user", "content": f"Agent: {agent_name}\nTask: {task}\n\nOutput to evaluate:\n{output[:1500]}"},
             ],
             max_tokens=200,
+            lang=language,
+            agent_name=self.name,
         )
-        evaluation = response.choices[0].message.content
 
         score = self._parse_score(evaluation)
         await store_learning(agent_name, task, output[:500], score)

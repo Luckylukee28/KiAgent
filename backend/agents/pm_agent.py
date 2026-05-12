@@ -1,4 +1,5 @@
 from .base import BaseAgent
+from .groq_utils import call_groq_with_retry
 
 
 class ProjectManagerAgent(BaseAgent):
@@ -69,12 +70,14 @@ RISKS:
         lang = context.get("language", "de")
         system = self.SYSTEM_PROMPT if lang == "de" else self.SYSTEM_PROMPT_EN
         user_msg = f"Erstelle einen vollständigen Projektplan für:\n{task}" if lang == "de" else f"Create a full project plan for:\n{task}"
-        response = await self.llm.chat.completions.create(
+        return await call_groq_with_retry(
+            self.llm,
             model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": user_msg},
             ],
             max_tokens=800,
+            lang=lang,
+            agent_name=self.name,
         )
-        return response.choices[0].message.content
