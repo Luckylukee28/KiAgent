@@ -238,6 +238,54 @@ class CodeRetriever:
             return []
 
 
+VOCAB_DB = os.path.join(os.path.dirname(__file__), '..', 'data', 'vocab.db')
+
+
+class VocabularyCache:
+    """
+    Lookup for the 194k multilingual word database.
+    Columns: rank, word_en, word_de, word_fr, word_es
+    """
+
+    def __init__(self, db_path: str = VOCAB_DB):
+        self.db_path = str(Path(db_path).resolve())
+        self._available = os.path.exists(self.db_path)
+
+    def lookup(self, word: str, lang: str = 'en') -> Optional[dict]:
+        """Return translations for a word. lang = 'en'|'de'|'fr'|'es'."""
+        if not self._available:
+            return None
+        col = {'en': 'word_en', 'de': 'word_de', 'fr': 'word_fr', 'es': 'word_es'}.get(lang, 'word_en')
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                row = conn.execute(
+                    f'SELECT rank, word_en, word_de, word_fr, word_es FROM vocab WHERE {col}=? COLLATE NOCASE',
+                    (word.strip(),)
+                ).fetchone()
+            if row:
+                return {'rank': row[0], 'en': row[1], 'de': row[2], 'fr': row[3], 'es': row[4]}
+        except Exception:
+            pass
+        return None
+
+    def enrich_task(self, task: str, lang: str = 'en') -> str:
+        """
+        Extract keywords from task, look them up in vocab, and append
+        a compact translation hint — useful for multilingual code tasks.
+        """
+        if not self._available:
+            return task
+        words = list(dict.fromkeys(re.findall(r'\b[a-zA-Z]{4,}\b', task)))[:15]
+        hints = []
+        for w in words:
+            entry = self.lookup(w.lower(), lang='en')
+            if entry and entry['de'] and entry['de'].lower() != w.lower():
+                hints.append(f"{entry['en']}={entry['de']}")
+        if hints:
+            return f"{task}\n\n[Vokabular-Hinweise: {', '.join(hints[:8])}]"
+        return task
+
+
 class ContextOptimizer:
     """Builds a token-limited context string from code snippets."""
 

@@ -19,3 +19,5 @@ node_modules/
 
 # Runtime generated
 *.db
+# Allow vocab DB in data/
+!backend/data/vocab.db

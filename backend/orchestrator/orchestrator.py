@@ -371,10 +371,19 @@ class Orchestrator:
 
         return results
 
+    def _enrich_with_vocab(self, task: str, language: str = "de") -> str:
+        """Enrich task with vocabulary hints from the 194k word database."""
+        try:
+            from rag.indexer import VocabularyCache
+            vc = VocabularyCache()
+            return vc.enrich_task(task, lang='en')
+        except Exception:
+            return task
+
     def _enrich_with_project_context(self, task: str, project_path: str) -> str:
         """Retrieve relevant project snippets via RAG and prepend to task."""
         try:
-            from rag.indexer import CodeRetriever, ContextOptimizer, ProjectIndexer
+            from rag.indexer import CodeRetriever, ContextOptimizer
             db_path = '/tmp/kiagent_rag.db'
             snippets = CodeRetriever.retrieve_from_db(task, db_path, project_path, top_k=6)
             if not snippets:
@@ -390,6 +399,7 @@ class Orchestrator:
         project_path: str = ""
     ) -> dict:
         await init_db()
+        goal = self._enrich_with_vocab(goal, language)
         if mode == "edit":
             return await self.run_edit_pipeline(goal, existing_code, broadcast, language)
         if mode == "debug":

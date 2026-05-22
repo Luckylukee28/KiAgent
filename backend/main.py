@@ -112,6 +112,35 @@ async def project_stats(project_path: str):
         return {"status": "error", "detail": str(e)}
 
 
+@app.get("/api/vocab")
+async def vocab_lookup(word: str, lang: str = "en"):
+    """Look up a word in the 194k multilingual vocabulary database."""
+    from rag.indexer import VocabularyCache
+    vc = VocabularyCache()
+    result = vc.lookup(word, lang=lang)
+    if result:
+        return {"status": "found", "entry": result}
+    return {"status": "not_found", "word": word}
+
+
+@app.get("/api/vocab/stats")
+async def vocab_stats():
+    """Return stats about the loaded vocabulary database."""
+    from rag.indexer import VocabularyCache, VOCAB_DB
+    import os
+    vc = VocabularyCache()
+    if not vc._available:
+        return {"status": "unavailable", "path": VOCAB_DB}
+    import sqlite3
+    with sqlite3.connect(vc.db_path) as conn:
+        count = conn.execute('SELECT COUNT(*) FROM vocab').fetchone()[0]
+    return {
+        "status": "available",
+        "entries": count,
+        "db_size_mb": round(os.path.getsize(vc.db_path) / 1024 / 1024, 1),
+    }
+
+
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
     orchestrator = Orchestrator(
