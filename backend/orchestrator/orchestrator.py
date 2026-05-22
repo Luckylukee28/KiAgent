@@ -137,6 +137,26 @@ class Orchestrator:
             return f"⚠️ {provider}-Fehler: {type(e).__name__}"
         return ""
 
+    def _phase_task(self, task: str, phase_name: str, lang: str) -> str:
+        """Prepend a focus directive to the task for generic (non-Groq) agents."""
+        phase_lower = phase_name.lower()
+        is_de = lang == "de"
+        if "frontend" in phase_lower:
+            prefix = (
+                "Fokus: Nur Frontend-Code (React/TypeScript/CSS). Kein Backend-Code.\n\n"
+                if is_de else
+                "Focus: Frontend code only (React/TypeScript/CSS). No backend code.\n\n"
+            )
+        elif "backend" in phase_lower:
+            prefix = (
+                "Fokus: Nur Backend-Code (Python/FastAPI). Kein Frontend-Code.\n\n"
+                if is_de else
+                "Focus: Backend code only (Python/FastAPI). No frontend code.\n\n"
+            )
+        else:
+            return task
+        return prefix + task
+
     async def _collaborate(
         self,
         task: str,
@@ -148,24 +168,26 @@ class Orchestrator:
     ) -> str:
         """Run all available agents in parallel, then synthesize."""
         is_de = lang == "de"
+        generic_task = self._phase_task(task, phase_name, lang)
 
-        async def run_agent(agent, label: str, provider: str) -> tuple[str, str]:
+        async def run_agent(agent, label: str, provider: str, agent_task: str) -> tuple[str, str]:
             thinking = "Erarbeite Lösung..." if is_de else "Working on solution..."
             await emit(label, thinking)
-            output = await agent.execute(task, {**context, "language": lang, "phase": phase_name})
+            output = await agent.execute(agent_task, {**context, "language": lang, "phase": phase_name})
             await emit(label, output)
             return provider, output
 
-        tasks = [run_agent(groq_agent, f"Groq · {phase_name}", "Groq")]
+        # Groq uses its own specialized agent (FrontendAgent, BackendCoderAgent, etc.)
+        tasks = [run_agent(groq_agent, f"Groq · {phase_name}", "Groq", task)]
 
         if self.has_gemini:
-            tasks.append(run_agent(self.gemini, f"Gemini · {phase_name}", "Gemini"))
+            tasks.append(run_agent(self.gemini, f"Gemini · {phase_name}", "Gemini", generic_task))
         if self.has_mistral:
-            tasks.append(run_agent(self.mistral, f"Mistral · {phase_name}", "Mistral"))
+            tasks.append(run_agent(self.mistral, f"Mistral · {phase_name}", "Mistral", generic_task))
         if self.has_openrouter:
-            tasks.append(run_agent(self.openrouter, f"OpenRouter · {phase_name}", "OpenRouter"))
+            tasks.append(run_agent(self.openrouter, f"OpenRouter · {phase_name}", "OpenRouter", generic_task))
         if self.has_reasoning:
-            tasks.append(run_agent(self.openrouter_reasoning, f"OpenRouter Reasoning · {phase_name}", "OpenRouter Reasoning"))
+            tasks.append(run_agent(self.openrouter_reasoning, f"OpenRouter Reasoning · {phase_name}", "OpenRouter Reasoning", generic_task))
 
         results = await asyncio.gather(*tasks)
         agent_outputs = dict(results)
@@ -178,7 +200,7 @@ class Orchestrator:
         synth_msg = f"Kombiniere {len(agent_outputs)} KI-Antworten..." if is_de else f"Combining {len(agent_outputs)} AI responses..."
         await emit("Synthesizer", synth_msg)
         final = await self.synthesizer.execute(
-            task, {"language": lang, "agent_outputs": agent_outputs}
+            generic_task, {"language": lang, "agent_outputs": agent_outputs}
         )
         await emit("Synthesizer", final)
         return final
