@@ -11,7 +11,7 @@ import '@xyflow/react/dist/style.css'
 
 import TriggerNode from '@/components/nodes/TriggerNode'
 import AgentNode from '@/components/nodes/AgentNode'
-import ModelNode from '@/components/nodes/ModelNode'
+import { GroqNode, GeminiNode, MistralNode, OpenRouterNode } from '@/components/nodes/LLMNodes'
 import MemoryNode from '@/components/nodes/MemoryNode'
 import ToolNode from '@/components/nodes/ToolNode'
 
@@ -21,7 +21,10 @@ import { connectWS, disconnectWS } from '@/lib/websocket'
 const nodeTypes: NodeTypes = {
   trigger: TriggerNode,
   agent: AgentNode,
-  model: ModelNode,
+  groq: GroqNode,
+  gemini: GeminiNode,
+  mistral: MistralNode,
+  openrouter: OpenRouterNode,
   memory: MemoryNode,
   tool: ToolNode,
 }
@@ -29,7 +32,10 @@ const nodeTypes: NodeTypes = {
 const ADD_NODES: { type: WorkflowNodeType; label: string; color: string }[] = [
   { type: 'trigger', label: 'Trigger', color: 'text-green-400 border-green-500/30 hover:border-green-500/60' },
   { type: 'agent', label: 'AI Agent', color: 'text-teal-400 border-teal-500/30 hover:border-teal-500/60' },
-  { type: 'model', label: 'Model', color: 'text-emerald-400 border-emerald-500/30 hover:border-emerald-500/60' },
+  { type: 'groq', label: 'Groq', color: 'text-amber-400 border-amber-500/30 hover:border-amber-500/60' },
+  { type: 'gemini', label: 'Gemini', color: 'text-blue-400 border-blue-500/30 hover:border-blue-500/60' },
+  { type: 'mistral', label: 'Mistral', color: 'text-purple-400 border-purple-500/30 hover:border-purple-500/60' },
+  { type: 'openrouter', label: 'OpenRouter', color: 'text-cyan-400 border-cyan-500/30 hover:border-cyan-500/60' },
   { type: 'memory', label: 'Memory', color: 'text-blue-400 border-blue-500/30 hover:border-blue-500/60' },
   { type: 'tool', label: 'Tool', color: 'text-orange-400 border-orange-500/30 hover:border-orange-500/60' },
 ]

@@ -60,9 +60,9 @@ export default function AgentNode({ data }: NodeProps) {
       <div className="h-px bg-[#2d2d50] mx-4" />
       <div className="grid grid-cols-3 px-4 py-2.5 gap-1">
         {[
-          { id: 'model', label: 'Chat Model*', count: '2 items total' },
-          { id: 'memory', label: 'Memory*', count: '2 items total' },
-          { id: 'tool', label: 'Tools*', count: '1 item' },
+          { id: 'llm', label: 'LLMs (4x)', count: 'parallel' },
+          { id: 'memory', label: 'Memory', count: 'context' },
+          { id: 'tool', label: 'Tools', count: 'execute' },
         ].map(({ id, label, count }) => (
           <div key={id} className="flex flex-col items-center">
             <span className="text-[10px] text-slate-500 whitespace-nowrap">{label}</span>
@@ -88,7 +88,7 @@ export default function AgentNode({ data }: NodeProps) {
 
       {/* Bottom handles for sub-nodes */}
       <Handle
-        id="model"
+        id="llm"
         type="source"
         position={Position.Bottom}
         style={{ left: '25%' }}

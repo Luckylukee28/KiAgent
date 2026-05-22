@@ -5,7 +5,7 @@ import {
   NodeChange, EdgeChange, Connection,
 } from '@xyflow/react'
 
-export type WorkflowNodeType = 'trigger' | 'agent' | 'model' | 'memory' | 'tool'
+export type WorkflowNodeType = 'trigger' | 'agent' | 'groq' | 'gemini' | 'mistral' | 'openrouter' | 'memory' | 'tool'
 
 export interface TriggerData extends Record<string, unknown> {
   task: string
@@ -19,10 +19,11 @@ export interface AgentData extends Record<string, unknown> {
   itemCount: number
 }
 
-export interface ModelData extends Record<string, unknown> {
-  provider: 'groq' | 'gemini' | 'mistral' | 'openrouter'
+export interface LLMNodeData extends Record<string, unknown> {
+  label: string
   model: string
   itemCount: number
+  status: 'idle' | 'running' | 'done' | 'error'
 }
 
 export interface MemoryData extends Record<string, unknown> {
@@ -54,22 +55,40 @@ export const DEFAULT_NODES: Node[] = [
     data: { label: 'AI Agent', status: 'idle', activeAgent: '', itemCount: 0 } as AgentData,
   },
   {
-    id: 'model-1',
-    type: 'model',
-    position: { x: 240, y: 430 },
-    data: { provider: 'groq', model: 'llama-3.1-8b-instant', itemCount: 2 } as ModelData,
+    id: 'groq-1',
+    type: 'groq',
+    position: { x: 100, y: 430 },
+    data: { label: 'Groq', model: 'llama-3.1-8b-instant', itemCount: 0, status: 'idle' } as LLMNodeData,
+  },
+  {
+    id: 'gemini-1',
+    type: 'gemini',
+    position: { x: 310, y: 430 },
+    data: { label: 'Google Gemini', model: 'gemini-2.0-flash', itemCount: 0, status: 'idle' } as LLMNodeData,
+  },
+  {
+    id: 'mistral-1',
+    type: 'mistral',
+    position: { x: 520, y: 430 },
+    data: { label: 'Mistral', model: 'mistral-small-latest', itemCount: 0, status: 'idle' } as LLMNodeData,
+  },
+  {
+    id: 'openrouter-1',
+    type: 'openrouter',
+    position: { x: 730, y: 430 },
+    data: { label: 'OpenRouter', model: 'baidu/cobuddy:free', itemCount: 0, status: 'idle' } as LLMNodeData,
   },
   {
     id: 'memory-1',
     type: 'memory',
-    position: { x: 450, y: 430 },
-    data: { strategy: 'sqlite', itemCount: 2 } as MemoryData,
+    position: { x: 380, y: 600 },
+    data: { strategy: 'sqlite', itemCount: 0 } as MemoryData,
   },
   {
     id: 'tool-1',
     type: 'tool',
-    position: { x: 660, y: 430 },
-    data: { name: 'fetch-from-backend', itemCount: 1 } as ToolData,
+    position: { x: 620, y: 600 },
+    data: { name: 'fetch-from-backend', itemCount: 0 } as ToolData,
   },
 ]
 
@@ -77,25 +96,43 @@ const DEFAULT_EDGES: Edge[] = [
   {
     id: 'e-trigger-agent',
     source: 'trigger-1', target: 'agent-1',
-    label: '1 item', animated: true,
+    label: '1 task', animated: true,
     style: EDGE_STYLE, labelStyle: LABEL_STYLE, labelBgStyle: LABEL_BG,
   },
   {
-    id: 'e-agent-model',
-    source: 'agent-1', sourceHandle: 'model', target: 'model-1',
-    type: 'smoothstep', label: '2 items total',
+    id: 'e-agent-groq',
+    source: 'agent-1', sourceHandle: 'llm', target: 'groq-1',
+    type: 'smoothstep', label: 'debate',
+    style: EDGE_STYLE_DIM, labelStyle: LABEL_STYLE, labelBgStyle: LABEL_BG,
+  },
+  {
+    id: 'e-agent-gemini',
+    source: 'agent-1', sourceHandle: 'llm', target: 'gemini-1',
+    type: 'smoothstep', label: 'debate',
+    style: EDGE_STYLE_DIM, labelStyle: LABEL_STYLE, labelBgStyle: LABEL_BG,
+  },
+  {
+    id: 'e-agent-mistral',
+    source: 'agent-1', sourceHandle: 'llm', target: 'mistral-1',
+    type: 'smoothstep', label: 'debate',
+    style: EDGE_STYLE_DIM, labelStyle: LABEL_STYLE, labelBgStyle: LABEL_BG,
+  },
+  {
+    id: 'e-agent-openrouter',
+    source: 'agent-1', sourceHandle: 'llm', target: 'openrouter-1',
+    type: 'smoothstep', label: 'debate',
     style: EDGE_STYLE_DIM, labelStyle: LABEL_STYLE, labelBgStyle: LABEL_BG,
   },
   {
     id: 'e-agent-memory',
     source: 'agent-1', sourceHandle: 'memory', target: 'memory-1',
-    type: 'smoothstep', label: '2 items total',
+    type: 'smoothstep', label: 'context',
     style: EDGE_STYLE_DIM, labelStyle: LABEL_STYLE, labelBgStyle: LABEL_BG,
   },
   {
     id: 'e-agent-tool',
     source: 'agent-1', sourceHandle: 'tool', target: 'tool-1',
-    type: 'smoothstep', label: '1 item',
+    type: 'smoothstep', label: 'execute',
     style: EDGE_STYLE_DIM, labelStyle: LABEL_STYLE, labelBgStyle: LABEL_BG,
   },
 ]
@@ -152,7 +189,10 @@ export const useNodeGraphStore = create<NodeGraphStore>((set) => ({
     const defaults: Record<WorkflowNodeType, Record<string, unknown>> = {
       trigger: { task: '', language: 'de' },
       agent: { label: 'AI Agent', status: 'idle', activeAgent: '', itemCount: 0 },
-      model: { provider: 'groq', model: 'llama-3.1-8b-instant', itemCount: 0 },
+      groq: { label: 'Groq', model: 'llama-3.1-8b-instant', itemCount: 0, status: 'idle' },
+      gemini: { label: 'Google Gemini', model: 'gemini-2.0-flash', itemCount: 0, status: 'idle' },
+      mistral: { label: 'Mistral', model: 'mistral-small-latest', itemCount: 0, status: 'idle' },
+      openrouter: { label: 'OpenRouter', model: 'baidu/cobuddy:free', itemCount: 0, status: 'idle' },
       memory: { strategy: 'sqlite', itemCount: 0 },
       tool: { name: 'new-tool', itemCount: 0 },
     }
