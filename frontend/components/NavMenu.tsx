@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAgentStore, SavedSession } from '@/lib/store'
 
-type View = 'chat' | 'mindmap' | 'workspace'
+type View = 'nodegraph' | 'chat' | 'workspace'
 
 interface Props {
   view: View
@@ -36,8 +36,8 @@ export default function NavMenu({ view, onViewChange, onOpenViewer }: Props) {
     setOpen(false)
   }
 
-  function handleNewMindMap() {
-    onViewChange('mindmap')
+  function handleNodeGraph() {
+    onViewChange('nodegraph')
     setOpen(false)
   }
 
@@ -84,11 +84,18 @@ export default function NavMenu({ view, onViewChange, onOpenViewer }: Props) {
           {/* Actions */}
           <div className="p-2 border-b border-gray-800">
             <button
-              onClick={() => { newProject(); onViewChange('mindmap'); setOpen(false) }}
+              onClick={() => { newProject(); handleNodeGraph() }}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-green-400 hover:bg-gray-800 font-medium"
             >
               <span className="text-base">✨</span>
               <span>{is_de ? 'Neues Projekt' : 'New Project'}</span>
+            </button>
+            <button
+              onClick={handleNodeGraph}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${view === 'nodegraph' ? 'bg-green-600/20 text-green-300' : 'text-gray-300 hover:bg-gray-800'}`}
+            >
+              <span className="text-base">⬡</span>
+              <span className="font-medium">{is_de ? 'Workflow Editor' : 'Workflow Editor'}</span>
             </button>
             <button
               onClick={handleWorkspace}
@@ -96,13 +103,6 @@ export default function NavMenu({ view, onViewChange, onOpenViewer }: Props) {
             >
               <span className="text-base">◇</span>
               <span className="font-medium">{is_de ? 'Workspace' : 'Workspace'}</span>
-            </button>
-            <button
-              onClick={handleNewMindMap}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${view === 'mindmap' ? 'bg-blue-600/30 text-blue-300' : 'text-gray-300 hover:bg-gray-800'}`}
-            >
-              <span className="text-base">🧠</span>
-              <span className="font-medium">{is_de ? 'Mind Map (klassisch)' : 'Mind Map (classic)'}</span>
             </button>
             <button
               onClick={handleChat}
