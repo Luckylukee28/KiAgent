@@ -14,6 +14,7 @@ import AgentNode from '@/components/nodes/AgentNode'
 import { GroqNode, GeminiNode, MistralNode, OpenRouterNode } from '@/components/nodes/LLMNodes'
 import MemoryNode from '@/components/nodes/MemoryNode'
 import ToolNode from '@/components/nodes/ToolNode'
+import TriggerPopup from '@/components/TriggerPopup'
 
 import { useNodeGraphStore, WorkflowNodeType, TriggerData, AgentData } from '@/lib/nodeGraphStore'
 import { connectWS, disconnectWS } from '@/lib/websocket'
@@ -46,8 +47,10 @@ export default function NodeGraph() {
     onNodesChange, onEdgesChange, onConnect,
     addNode, updateNodeData,
     executionState, setExecutionState,
+    setEdgesAnimated,
     addMessage, clearExecution,
     resetGraph,
+    popupOpen, setPopupOpen,
   } = useNodeGraphStore()
 
   const abortRef = useRef<AbortController | null>(null)
@@ -64,7 +67,11 @@ export default function NodeGraph() {
 
     clearExecution()
     setExecutionState('running')
+    setEdgesAnimated(true)
     updateNodeData(agentNode.id, { status: 'running', activeAgent: 'Pipeline startet...', itemCount: 0 })
+    // Animate all LLM nodes as running
+    nodes.filter(n => ['groq','gemini','mistral','openrouter'].includes(n.type!))
+      .forEach(n => updateNodeData(n.id, { status: 'running' }))
 
     abortRef.current = new AbortController()
     let messageCount = 0
@@ -87,16 +94,19 @@ export default function NodeGraph() {
       })
       const result = await res.json()
       if (result.status === 'done') {
-        updateNodeData(agentNode.id, {
-          status: 'done',
-          activeAgent: 'AI Agent',
-          itemCount: Object.keys(result.results ?? {}).length,
-        })
+        const count = Object.keys(result.results ?? {}).length
+        updateNodeData(agentNode.id, { status: 'done', activeAgent: 'AI Agent', itemCount: count })
+        nodes.filter(n => ['groq','gemini','mistral','openrouter'].includes(n.type!))
+          .forEach(n => updateNodeData(n.id, { status: 'done', itemCount: 1 }))
+        setEdgesAnimated(false)
         setExecutionState('done')
       }
     } catch (e: unknown) {
       if ((e as { name?: string })?.name !== 'AbortError') {
         updateNodeData(agentNode.id, { status: 'error', activeAgent: 'AI Agent' })
+        nodes.filter(n => ['groq','gemini','mistral','openrouter'].includes(n.type!))
+          .forEach(n => updateNodeData(n.id, { status: 'idle' }))
+        setEdgesAnimated(false)
         setExecutionState('idle')
       }
     } finally {
@@ -109,13 +119,17 @@ export default function NodeGraph() {
     disconnectWS()
     const agentNode = nodes.find((n) => n.type === 'agent')
     if (agentNode) updateNodeData(agentNode.id, { status: 'idle', activeAgent: 'AI Agent' })
+    nodes.filter(n => ['groq','gemini','mistral','openrouter'].includes(n.type!))
+      .forEach(n => updateNodeData(n.id, { status: 'idle' }))
+    setEdgesAnimated(false)
     setExecutionState('idle')
-  }, [nodes, updateNodeData, setExecutionState])
+  }, [nodes, updateNodeData, setExecutionState, setEdgesAnimated])
 
   const isRunning = executionState === 'running'
 
   return (
     <div className="w-full h-full flex flex-col bg-[#0d0d1a]">
+      {popupOpen && <TriggerPopup onRun={handleRun} isRunning={isRunning} />}
       {/* Toolbar */}
       <div className="flex items-center gap-2 px-4 py-2.5 bg-[#0d0d1a] border-b border-[#1e1e30] z-10">
         {/* Add node buttons */}

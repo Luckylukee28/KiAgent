@@ -96,44 +96,44 @@ const DEFAULT_EDGES: Edge[] = [
   {
     id: 'e-trigger-agent',
     source: 'trigger-1', target: 'agent-1',
-    label: '1 task', animated: true,
-    style: EDGE_STYLE, labelStyle: LABEL_STYLE, labelBgStyle: LABEL_BG,
+    animated: false,
+    style: EDGE_STYLE,
   },
   {
     id: 'e-agent-groq',
     source: 'agent-1', sourceHandle: 'llm', target: 'groq-1',
-    type: 'smoothstep', label: 'debate',
-    style: EDGE_STYLE_DIM, labelStyle: LABEL_STYLE, labelBgStyle: LABEL_BG,
+    type: 'smoothstep', animated: false,
+    style: EDGE_STYLE_DIM,
   },
   {
     id: 'e-agent-gemini',
     source: 'agent-1', sourceHandle: 'llm', target: 'gemini-1',
-    type: 'smoothstep', label: 'debate',
-    style: EDGE_STYLE_DIM, labelStyle: LABEL_STYLE, labelBgStyle: LABEL_BG,
+    type: 'smoothstep', animated: false,
+    style: EDGE_STYLE_DIM,
   },
   {
     id: 'e-agent-mistral',
     source: 'agent-1', sourceHandle: 'llm', target: 'mistral-1',
-    type: 'smoothstep', label: 'debate',
-    style: EDGE_STYLE_DIM, labelStyle: LABEL_STYLE, labelBgStyle: LABEL_BG,
+    type: 'smoothstep', animated: false,
+    style: EDGE_STYLE_DIM,
   },
   {
     id: 'e-agent-openrouter',
     source: 'agent-1', sourceHandle: 'llm', target: 'openrouter-1',
-    type: 'smoothstep', label: 'debate',
-    style: EDGE_STYLE_DIM, labelStyle: LABEL_STYLE, labelBgStyle: LABEL_BG,
+    type: 'smoothstep', animated: false,
+    style: EDGE_STYLE_DIM,
   },
   {
     id: 'e-agent-memory',
     source: 'agent-1', sourceHandle: 'memory', target: 'memory-1',
-    type: 'smoothstep', label: 'context',
-    style: EDGE_STYLE_DIM, labelStyle: LABEL_STYLE, labelBgStyle: LABEL_BG,
+    type: 'smoothstep', animated: false,
+    style: EDGE_STYLE_DIM,
   },
   {
     id: 'e-agent-tool',
     source: 'agent-1', sourceHandle: 'tool', target: 'tool-1',
-    type: 'smoothstep', label: 'execute',
-    style: EDGE_STYLE_DIM, labelStyle: LABEL_STYLE, labelBgStyle: LABEL_BG,
+    type: 'smoothstep', animated: false,
+    style: EDGE_STYLE_DIM,
   },
 ]
 
@@ -142,6 +142,7 @@ interface NodeGraphStore {
   edges: Edge[]
   executionState: 'idle' | 'running' | 'done'
   messages: { agent: string; message: string }[]
+  popupOpen: boolean
 
   setNodes: (nodes: Node[]) => void
   setEdges: (edges: Edge[]) => void
@@ -152,9 +153,11 @@ interface NodeGraphStore {
   addNode: (type: WorkflowNodeType) => void
   removeNode: (id: string) => void
   setExecutionState: (state: 'idle' | 'running' | 'done') => void
+  setEdgesAnimated: (animated: boolean) => void
   addMessage: (msg: { agent: string; message: string }) => void
   clearExecution: () => void
   resetGraph: () => void
+  setPopupOpen: (open: boolean) => void
 }
 
 export const useNodeGraphStore = create<NodeGraphStore>((set) => ({
@@ -162,6 +165,7 @@ export const useNodeGraphStore = create<NodeGraphStore>((set) => ({
   edges: DEFAULT_EDGES,
   executionState: 'idle',
   messages: [],
+  popupOpen: false,
 
   setNodes: (nodes) => set({ nodes }),
   setEdges: (edges) => set({ edges }),
@@ -211,6 +215,11 @@ export const useNodeGraphStore = create<NodeGraphStore>((set) => ({
     })),
 
   setExecutionState: (executionState) => set({ executionState }),
+
+  setEdgesAnimated: (animated) =>
+    set((s) => ({ edges: s.edges.map((e) => ({ ...e, animated })) })),
+
+  setPopupOpen: (popupOpen) => set({ popupOpen }),
 
   addMessage: (msg) =>
     set((s) => ({ messages: [...s.messages, msg] })),
