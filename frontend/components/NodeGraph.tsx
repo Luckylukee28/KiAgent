@@ -124,10 +124,14 @@ export default function NodeGraph() {
     })
 
     try {
+      const mode = (triggerNode?.data as TriggerData)?.mode ?? 'develop'
+      const existingCode = (triggerNode?.data as TriggerData)?.existingCode ?? ''
+      const errorMessage = (triggerNode?.data as TriggerData)?.errorMessage ?? ''
+
       const res = await fetch('http://localhost:8000/api/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ goal: task, language }),
+        body: JSON.stringify({ goal: task, language, mode, existing_code: existingCode, error_message: errorMessage }),
         signal: abortRef.current.signal,
       })
       const result = await res.json()

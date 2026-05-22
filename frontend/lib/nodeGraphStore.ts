@@ -10,6 +10,9 @@ export type WorkflowNodeType = 'trigger' | 'agent' | 'groq' | 'gemini' | 'mistra
 export interface TriggerData extends Record<string, unknown> {
   task: string
   language: 'de' | 'en'
+  mode: 'develop' | 'edit' | 'debug'
+  existingCode: string
+  errorMessage: string
 }
 
 export interface AgentData extends Record<string, unknown> {
@@ -46,7 +49,7 @@ export const DEFAULT_NODES: Node[] = [
     id: 'trigger-1',
     type: 'trigger',
     position: { x: 80, y: 270 },
-    data: { task: '', language: 'de' } as TriggerData,
+    data: { task: '', language: 'de', mode: 'develop', existingCode: '', errorMessage: '' } as TriggerData,
   },
   {
     id: 'agent-1',
@@ -201,7 +204,7 @@ export const useNodeGraphStore = create<NodeGraphStore>((set) => ({
   addNode: (type) => {
     const id = `${type}-${Date.now()}`
     const defaults: Record<WorkflowNodeType, Record<string, unknown>> = {
-      trigger:     { task: '', language: 'de' },
+      trigger:     { task: '', language: 'de', mode: 'develop', existingCode: '', errorMessage: '' },
       agent:       { label: 'AI Agent', status: 'idle', activeAgent: '', itemCount: 0 },
       groq:        { label: 'Groq', model: 'llama-3.1-8b-instant', itemCount: 0, status: 'idle' },
       gemini:      { label: 'Google Gemini', model: 'gemini-2.0-flash', itemCount: 0, status: 'idle' },

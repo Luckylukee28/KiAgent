@@ -244,10 +244,109 @@ class Orchestrator:
         )
         return result
 
+    async def run_edit_pipeline(self, goal: str, existing_code: str, broadcast=None, language: str = "de") -> dict:
+        results = {}
+        lang = language
+        is_de = lang == "de"
+
+        async def emit(agent: str, content: str):
+            results[agent] = content
+            if broadcast:
+                await broadcast({"agent": agent, "message": content})
+
+        task = (
+            f"BESTEHENDER CODE:\n```\n{existing_code}\n```\n\nAUFGABE (Änderungen durchführen):\n{goal}"
+            if is_de else
+            f"EXISTING CODE:\n```\n{existing_code}\n```\n\nTASK (implement changes):\n{goal}"
+        )
+
+        # Phase 1: Analysis
+        await emit("Code Analyse", "Analysiere bestehenden Code..." if is_de else "Analyzing existing code...")
+        plan = await self._collaborate(
+            task=task,
+            groq_agent=self.architect,
+            context={"mode": "edit"},
+            emit=emit,
+            phase_name="Analyse" if is_de else "Analysis",
+            lang=lang,
+        )
+
+        # Phase 2: Implementation
+        await emit("Implementierung", "Implementiere Änderungen..." if is_de else "Implementing changes...")
+        code = await self._collaborate(
+            task=task,
+            groq_agent=self.coder,
+            context={"architecture": plan, "mode": "edit"},
+            emit=emit,
+            phase_name="Implementierung" if is_de else "Implementation",
+            lang=lang,
+        )
+
+        # Phase 3: Review
+        await self._collaborate(
+            task=goal,
+            groq_agent=self.reviewer,
+            context={"code": code, "mode": "edit"},
+            emit=emit,
+            phase_name="Review",
+            lang=lang,
+        )
+
+        return results
+
+    async def run_debug_pipeline(self, goal: str, existing_code: str, error_message: str, broadcast=None, language: str = "de") -> dict:
+        results = {}
+        lang = language
+        is_de = lang == "de"
+
+        async def emit(agent: str, content: str):
+            results[agent] = content
+            if broadcast:
+                await broadcast({"agent": agent, "message": content})
+
+        debug_task = (
+            f"CODE MIT FEHLER:\n```\n{existing_code}\n```\n\n"
+            f"FEHLERMELDUNG:\n{error_message}\n\n"
+            f"AUFGABE:\n{goal or 'Finde und behebe den Fehler.'}"
+            if is_de else
+            f"CODE WITH BUG:\n```\n{existing_code}\n```\n\n"
+            f"ERROR MESSAGE:\n{error_message}\n\n"
+            f"TASK:\n{goal or 'Find and fix the bug.'}"
+        )
+
+        # Phase 1: Error Diagnosis
+        await emit("Debug Analyse", "Analysiere Fehler und Code..." if is_de else "Analyzing error and code...")
+        diagnosis = await self._collaborate(
+            task=debug_task,
+            groq_agent=self.reviewer,
+            context={"mode": "debug"},
+            emit=emit,
+            phase_name="Diagnose" if is_de else "Diagnosis",
+            lang=lang,
+        )
+
+        # Phase 2: Fix Generation
+        await emit("Fix Generator", "Generiere Bugfix..." if is_de else "Generating bugfix...")
+        await self._collaborate(
+            task=debug_task,
+            groq_agent=self.coder,
+            context={"diagnosis": diagnosis, "mode": "debug"},
+            emit=emit,
+            phase_name="Bugfix",
+            lang=lang,
+        )
+
+        return results
+
     async def run_pipeline(
-        self, goal: str, broadcast: Callable[[dict], None] = None, language: str = "de"
+        self, goal: str, broadcast: Callable[[dict], None] = None, language: str = "de",
+        mode: str = "develop", existing_code: str = "", error_message: str = ""
     ) -> dict:
         await init_db()
+        if mode == "edit":
+            return await self.run_edit_pipeline(goal, existing_code, broadcast, language)
+        if mode == "debug":
+            return await self.run_debug_pipeline(goal, existing_code, error_message, broadcast, language)
         results = {}
         lang = language
         is_de = lang == "de"

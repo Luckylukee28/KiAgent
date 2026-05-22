@@ -44,6 +44,9 @@ app.add_middleware(
 class TaskRequest(BaseModel):
     goal: str
     language: str = "de"
+    mode: str = "develop"        # develop | edit | debug
+    existing_code: str = ""
+    error_message: str = ""
 
 
 class ChatRequest(BaseModel):
@@ -71,6 +74,9 @@ async def run_task(request: TaskRequest):
         goal=request.goal,
         broadcast=manager.broadcast,
         language=request.language,
+        mode=request.mode,
+        existing_code=request.existing_code,
+        error_message=request.error_message,
     )
     return {"status": "done", "results": results}
 
