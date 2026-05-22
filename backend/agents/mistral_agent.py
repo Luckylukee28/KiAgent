@@ -1,5 +1,5 @@
-from mistralai import Mistral
-from mistralai.models import SDKError
+from mistralai.client import Mistral
+from mistralai.client.errors import SDKError
 from .base import BaseAgent
 
 
