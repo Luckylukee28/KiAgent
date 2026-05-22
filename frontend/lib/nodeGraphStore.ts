@@ -57,25 +57,25 @@ export const DEFAULT_NODES: Node[] = [
   {
     id: 'groq-1',
     type: 'groq',
-    position: { x: 80,  y: 540 },
+    position: { x: 60,  y: 520 },
     data: { label: 'Groq', model: 'llama-3.1-8b-instant', itemCount: 0, status: 'idle' } as LLMNodeData,
   },
   {
     id: 'gemini-1',
     type: 'gemini',
-    position: { x: 290, y: 540 },
+    position: { x: 270, y: 520 },
     data: { label: 'Google Gemini', model: 'gemini-2.0-flash', itemCount: 0, status: 'idle' } as LLMNodeData,
   },
   {
     id: 'mistral-1',
     type: 'mistral',
-    position: { x: 500, y: 540 },
+    position: { x: 480, y: 520 },
     data: { label: 'Mistral', model: 'mistral-small-latest', itemCount: 0, status: 'idle' } as LLMNodeData,
   },
   {
     id: 'openrouter-1',
     type: 'openrouter',
-    position: { x: 710, y: 540 },
+    position: { x: 690, y: 520 },
     data: { label: 'OpenRouter', model: 'baidu/cobuddy:free', itemCount: 0, status: 'idle' } as LLMNodeData,
   },
 ]
@@ -91,25 +91,25 @@ export const DEFAULT_EDGES: Edge[] = [
   {
     id: 'e-groq-agent',
     source: 'groq-1', target: 'agent-1', targetHandle: 'from-groq',
-    type: 'smoothstep', animated: false,
+    type: 'straight', animated: false,
     style: EDGE_LLM,
   },
   {
     id: 'e-gemini-agent',
     source: 'gemini-1', target: 'agent-1', targetHandle: 'from-gemini',
-    type: 'smoothstep', animated: false,
+    type: 'straight', animated: false,
     style: EDGE_LLM,
   },
   {
     id: 'e-mistral-agent',
     source: 'mistral-1', target: 'agent-1', targetHandle: 'from-mistral',
-    type: 'smoothstep', animated: false,
+    type: 'straight', animated: false,
     style: EDGE_LLM,
   },
   {
     id: 'e-openrouter-agent',
     source: 'openrouter-1', target: 'agent-1', targetHandle: 'from-openrouter',
-    type: 'smoothstep', animated: false,
+    type: 'straight', animated: false,
     style: EDGE_LLM,
   },
 ]
