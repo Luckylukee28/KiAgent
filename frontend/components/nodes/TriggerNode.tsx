@@ -39,7 +39,9 @@ export default function TriggerNode() {
         <div className="flex-1 min-w-0">
           <div className="text-[10px] text-slate-600 leading-none mb-0.5">Trigger</div>
           <div className="text-[12px] text-slate-300 font-medium leading-tight truncate">
-            {hasTask ? 'Task bereit' : 'Klicken zum Eingeben'}
+            {isRunning && triggerData?.task
+              ? triggerData.task.substring(0, 40) + (triggerData.task.length > 40 ? '...' : '')
+              : (hasTask ? 'Task bereit' : 'Klicken zum Eingeben')}
           </div>
         </div>
 
