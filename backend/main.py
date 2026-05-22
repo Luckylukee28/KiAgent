@@ -47,6 +47,7 @@ class TaskRequest(BaseModel):
     mode: str = "develop"        # develop | edit | debug
     existing_code: str = ""
     error_message: str = ""
+    project_path: str = ""
 
 
 class ChatRequest(BaseModel):
@@ -77,8 +78,38 @@ async def run_task(request: TaskRequest):
         mode=request.mode,
         existing_code=request.existing_code,
         error_message=request.error_message,
+        project_path=request.project_path,
     )
     return {"status": "done", "results": results}
+
+
+class IndexProjectRequest(BaseModel):
+    project_path: str
+
+
+@app.post("/api/index-project")
+async def index_project(request: IndexProjectRequest):
+    from rag.indexer import ProjectIndexer
+    try:
+        indexer = ProjectIndexer()
+        meta = indexer.index_project(request.project_path)
+        return {"status": "done", "meta": meta}
+    except Exception as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/project-stats")
+async def project_stats(project_path: str):
+    from rag.indexer import ProjectIndexer
+    try:
+        indexer = ProjectIndexer()
+        stats = indexer.get_project_stats(project_path)
+        if not stats:
+            return {"status": "not_indexed"}
+        return {"status": "indexed", "stats": stats}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
 
 
 @app.post("/api/chat")

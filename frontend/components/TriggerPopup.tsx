@@ -119,6 +119,25 @@ export default function TriggerPopup({ onRun, isRunning }: Props) {
             />
           </div>
 
+          {/* Project path (develop mode only) */}
+          {mode === 'develop' && (
+            <div>
+              <label className="block text-[11px] text-slate-500 mb-1.5">
+                Projekt-Pfad <span className="text-slate-700">(optional — für bestehende Projekte)</span>
+              </label>
+              <input
+                type="text"
+                className="w-full bg-[#1e1e2e] border border-[#2d2d50] focus:border-green-500/50 rounded-xl px-4 py-2.5 text-[12px] text-slate-300 placeholder-slate-700 outline-none transition-colors font-mono"
+                placeholder="/pfad/zum/projekt  oder  ~/projects/mein-app"
+                value={d?.projectPath ?? ''}
+                onChange={(e) => update({ projectPath: e.target.value })}
+              />
+              <div className="text-[10px] text-slate-700 mt-1 pl-1">
+                Wird indexiert → KI erhält nur relevante Code-Snippets (RAG)
+              </div>
+            </div>
+          )}
+
           {/* Existing code (edit + debug) */}
           {showCode && (
             <div>

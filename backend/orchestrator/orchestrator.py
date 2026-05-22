@@ -254,11 +254,27 @@ class Orchestrator:
             if broadcast:
                 await broadcast({"agent": agent, "message": content})
 
-        task = (
-            f"BESTEHENDER CODE:\n```\n{existing_code}\n```\n\nAUFGABE (Änderungen durchführen):\n{goal}"
-            if is_de else
-            f"EXISTING CODE:\n```\n{existing_code}\n```\n\nTASK (implement changes):\n{goal}"
-        )
+        if len(existing_code) > 2000:
+            try:
+                from rag.indexer import ContextOptimizer
+                rag_context = ContextOptimizer.build_context_from_text(existing_code, goal, max_tokens=4000)
+                task = (
+                    f"{rag_context}\n\n## Vollständiger Code (Referenz)\nAUFGABE (Änderungen durchführen):\n{goal}"
+                    if is_de else
+                    f"{rag_context}\n\n## Full Code (reference)\nTASK (implement changes):\n{goal}"
+                )
+            except Exception:
+                task = (
+                    f"BESTEHENDER CODE:\n```\n{existing_code}\n```\n\nAUFGABE (Änderungen durchführen):\n{goal}"
+                    if is_de else
+                    f"EXISTING CODE:\n```\n{existing_code}\n```\n\nTASK (implement changes):\n{goal}"
+                )
+        else:
+            task = (
+                f"BESTEHENDER CODE:\n```\n{existing_code}\n```\n\nAUFGABE (Änderungen durchführen):\n{goal}"
+                if is_de else
+                f"EXISTING CODE:\n```\n{existing_code}\n```\n\nTASK (implement changes):\n{goal}"
+            )
 
         # Phase 1: Analysis
         await emit("Code Analyse", "Analysiere bestehenden Code..." if is_de else "Analyzing existing code...")
@@ -304,15 +320,32 @@ class Orchestrator:
             if broadcast:
                 await broadcast({"agent": agent, "message": content})
 
-        debug_task = (
-            f"CODE MIT FEHLER:\n```\n{existing_code}\n```\n\n"
-            f"FEHLERMELDUNG:\n{error_message}\n\n"
-            f"AUFGABE:\n{goal or 'Finde und behebe den Fehler.'}"
-            if is_de else
-            f"CODE WITH BUG:\n```\n{existing_code}\n```\n\n"
-            f"ERROR MESSAGE:\n{error_message}\n\n"
-            f"TASK:\n{goal or 'Find and fix the bug.'}"
-        )
+        error_block = f"FEHLERMELDUNG:\n{error_message}\n\n" if error_message else ""
+        error_block_en = f"ERROR MESSAGE:\n{error_message}\n\n" if error_message else ""
+
+        if len(existing_code) > 2000:
+            try:
+                from rag.indexer import ContextOptimizer
+                bug_task = goal or ('Finde und behebe den Fehler.' if is_de else 'Find and fix the bug.')
+                rag_context = ContextOptimizer.build_context_from_text(existing_code, bug_task, max_tokens=4000)
+                debug_task = f"{rag_context}\n\n{error_block}AUFGABE:\n{bug_task}" if is_de else \
+                             f"{rag_context}\n\n{error_block_en}TASK:\n{bug_task}"
+            except Exception:
+                debug_task = (
+                    f"CODE MIT FEHLER:\n```\n{existing_code}\n```\n\n{error_block}"
+                    f"AUFGABE:\n{goal or 'Finde und behebe den Fehler.'}"
+                    if is_de else
+                    f"CODE WITH BUG:\n```\n{existing_code}\n```\n\n{error_block_en}"
+                    f"TASK:\n{goal or 'Find and fix the bug.'}"
+                )
+        else:
+            debug_task = (
+                f"CODE MIT FEHLER:\n```\n{existing_code}\n```\n\n{error_block}"
+                f"AUFGABE:\n{goal or 'Finde und behebe den Fehler.'}"
+                if is_de else
+                f"CODE WITH BUG:\n```\n{existing_code}\n```\n\n{error_block_en}"
+                f"TASK:\n{goal or 'Find and fix the bug.'}"
+            )
 
         # Phase 1: Error Diagnosis
         await emit("Debug Analyse", "Analysiere Fehler und Code..." if is_de else "Analyzing error and code...")
@@ -338,15 +371,32 @@ class Orchestrator:
 
         return results
 
+    def _enrich_with_project_context(self, task: str, project_path: str) -> str:
+        """Retrieve relevant project snippets via RAG and prepend to task."""
+        try:
+            from rag.indexer import CodeRetriever, ContextOptimizer, ProjectIndexer
+            db_path = '/tmp/kiagent_rag.db'
+            snippets = CodeRetriever.retrieve_from_db(task, db_path, project_path, top_k=6)
+            if not snippets:
+                return task
+            context = ContextOptimizer.build_context(snippets, task, max_tokens=4000)
+            return f"{context}\n\n## Aufgabe\n{task}"
+        except Exception:
+            return task
+
     async def run_pipeline(
         self, goal: str, broadcast: Callable[[dict], None] = None, language: str = "de",
-        mode: str = "develop", existing_code: str = "", error_message: str = ""
+        mode: str = "develop", existing_code: str = "", error_message: str = "",
+        project_path: str = ""
     ) -> dict:
         await init_db()
         if mode == "edit":
             return await self.run_edit_pipeline(goal, existing_code, broadcast, language)
         if mode == "debug":
             return await self.run_debug_pipeline(goal, existing_code, error_message, broadcast, language)
+        # develop mode — use RAG context if project_path provided
+        if project_path:
+            goal = self._enrich_with_project_context(goal, project_path)
         results = {}
         lang = language
         is_de = lang == "de"

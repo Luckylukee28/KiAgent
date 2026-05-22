@@ -13,6 +13,7 @@ export interface TriggerData extends Record<string, unknown> {
   mode: 'develop' | 'edit' | 'debug'
   existingCode: string
   errorMessage: string
+  projectPath: string
 }
 
 export interface AgentData extends Record<string, unknown> {
@@ -49,7 +50,7 @@ export const DEFAULT_NODES: Node[] = [
     id: 'trigger-1',
     type: 'trigger',
     position: { x: 80, y: 270 },
-    data: { task: '', language: 'de', mode: 'develop', existingCode: '', errorMessage: '' } as TriggerData,
+    data: { task: '', language: 'de', mode: 'develop', existingCode: '', errorMessage: '', projectPath: '' } as TriggerData,
   },
   {
     id: 'agent-1',
@@ -204,7 +205,7 @@ export const useNodeGraphStore = create<NodeGraphStore>((set) => ({
   addNode: (type) => {
     const id = `${type}-${Date.now()}`
     const defaults: Record<WorkflowNodeType, Record<string, unknown>> = {
-      trigger:     { task: '', language: 'de', mode: 'develop', existingCode: '', errorMessage: '' },
+      trigger:     { task: '', language: 'de', mode: 'develop', existingCode: '', errorMessage: '', projectPath: '' },
       agent:       { label: 'AI Agent', status: 'idle', activeAgent: '', itemCount: 0 },
       groq:        { label: 'Groq', model: 'llama-3.1-8b-instant', itemCount: 0, status: 'idle' },
       gemini:      { label: 'Google Gemini', model: 'gemini-2.0-flash', itemCount: 0, status: 'idle' },
