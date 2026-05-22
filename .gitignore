@@ -16,3 +16,6 @@ node_modules/
 # IDE
 .vscode/
 .idea/
+
+# Runtime generated
+*.db
