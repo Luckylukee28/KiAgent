@@ -36,104 +36,112 @@ export interface ToolData extends Record<string, unknown> {
   itemCount: number
 }
 
-const EDGE_STYLE = { stroke: '#22c55e', strokeWidth: 1.5 }
-const EDGE_STYLE_DIM = { stroke: '#22c55e55', strokeWidth: 1.5 }
-const LABEL_STYLE = { fill: '#64748b', fontSize: 11, fontFamily: 'inherit' }
-const LABEL_BG = { fill: 'transparent' }
+const EDGE_MAIN  = { stroke: '#22c55e',   strokeWidth: 1.5 }
+const EDGE_LLM   = { stroke: '#22c55e44', strokeWidth: 1.5 }
+const EDGE_SUPP  = { stroke: '#3b82f644', strokeWidth: 1.5 }
 
+// Only Trigger, Agent and 4 LLMs visible at startup
 export const DEFAULT_NODES: Node[] = [
   {
     id: 'trigger-1',
     type: 'trigger',
-    position: { x: 60, y: 210 },
+    position: { x: 80, y: 270 },
     data: { task: '', language: 'de' } as TriggerData,
   },
   {
     id: 'agent-1',
     type: 'agent',
-    position: { x: 380, y: 190 },
+    position: { x: 380, y: 240 },
     data: { label: 'AI Agent', status: 'idle', activeAgent: '', itemCount: 0 } as AgentData,
   },
   {
     id: 'groq-1',
     type: 'groq',
-    position: { x: 100, y: 430 },
+    position: { x: 80,  y: 540 },
     data: { label: 'Groq', model: 'llama-3.1-8b-instant', itemCount: 0, status: 'idle' } as LLMNodeData,
   },
   {
     id: 'gemini-1',
     type: 'gemini',
-    position: { x: 310, y: 430 },
+    position: { x: 290, y: 540 },
     data: { label: 'Google Gemini', model: 'gemini-2.0-flash', itemCount: 0, status: 'idle' } as LLMNodeData,
   },
   {
     id: 'mistral-1',
     type: 'mistral',
-    position: { x: 520, y: 430 },
+    position: { x: 500, y: 540 },
     data: { label: 'Mistral', model: 'mistral-small-latest', itemCount: 0, status: 'idle' } as LLMNodeData,
   },
   {
     id: 'openrouter-1',
     type: 'openrouter',
-    position: { x: 730, y: 430 },
+    position: { x: 710, y: 540 },
     data: { label: 'OpenRouter', model: 'baidu/cobuddy:free', itemCount: 0, status: 'idle' } as LLMNodeData,
   },
+]
+
+// Edges go LLM → Agent (response direction, upward)
+export const DEFAULT_EDGES: Edge[] = [
+  {
+    id: 'e-trigger-agent',
+    source: 'trigger-1', target: 'agent-1',
+    animated: false,
+    style: EDGE_MAIN,
+  },
+  {
+    id: 'e-groq-agent',
+    source: 'groq-1', target: 'agent-1', targetHandle: 'from-groq',
+    type: 'smoothstep', animated: false,
+    style: EDGE_LLM,
+  },
+  {
+    id: 'e-gemini-agent',
+    source: 'gemini-1', target: 'agent-1', targetHandle: 'from-gemini',
+    type: 'smoothstep', animated: false,
+    style: EDGE_LLM,
+  },
+  {
+    id: 'e-mistral-agent',
+    source: 'mistral-1', target: 'agent-1', targetHandle: 'from-mistral',
+    type: 'smoothstep', animated: false,
+    style: EDGE_LLM,
+  },
+  {
+    id: 'e-openrouter-agent',
+    source: 'openrouter-1', target: 'agent-1', targetHandle: 'from-openrouter',
+    type: 'smoothstep', animated: false,
+    style: EDGE_LLM,
+  },
+]
+
+// Support nodes (appear when pipeline starts)
+const SUPPORT_NODES: Node[] = [
   {
     id: 'memory-1',
     type: 'memory',
-    position: { x: 380, y: 600 },
+    position: { x: 380, y: 420 },
     data: { strategy: 'sqlite', itemCount: 0 } as MemoryData,
   },
   {
     id: 'tool-1',
     type: 'tool',
-    position: { x: 620, y: 600 },
+    position: { x: 620, y: 420 },
     data: { name: 'fetch-from-backend', itemCount: 0 } as ToolData,
   },
 ]
 
-const DEFAULT_EDGES: Edge[] = [
-  {
-    id: 'e-trigger-agent',
-    source: 'trigger-1', target: 'agent-1',
-    animated: false,
-    style: EDGE_STYLE,
-  },
-  {
-    id: 'e-agent-groq',
-    source: 'agent-1', sourceHandle: 'llm', target: 'groq-1',
-    type: 'smoothstep', animated: false,
-    style: EDGE_STYLE_DIM,
-  },
-  {
-    id: 'e-agent-gemini',
-    source: 'agent-1', sourceHandle: 'llm', target: 'gemini-1',
-    type: 'smoothstep', animated: false,
-    style: EDGE_STYLE_DIM,
-  },
-  {
-    id: 'e-agent-mistral',
-    source: 'agent-1', sourceHandle: 'llm', target: 'mistral-1',
-    type: 'smoothstep', animated: false,
-    style: EDGE_STYLE_DIM,
-  },
-  {
-    id: 'e-agent-openrouter',
-    source: 'agent-1', sourceHandle: 'llm', target: 'openrouter-1',
-    type: 'smoothstep', animated: false,
-    style: EDGE_STYLE_DIM,
-  },
+const SUPPORT_EDGES: Edge[] = [
   {
     id: 'e-agent-memory',
-    source: 'agent-1', sourceHandle: 'memory', target: 'memory-1',
+    source: 'agent-1', target: 'memory-1',
     type: 'smoothstep', animated: false,
-    style: EDGE_STYLE_DIM,
+    style: EDGE_SUPP,
   },
   {
     id: 'e-agent-tool',
-    source: 'agent-1', sourceHandle: 'tool', target: 'tool-1',
+    source: 'agent-1', target: 'tool-1',
     type: 'smoothstep', animated: false,
-    style: EDGE_STYLE_DIM,
+    style: EDGE_SUPP,
   },
 ]
 
@@ -153,7 +161,9 @@ interface NodeGraphStore {
   addNode: (type: WorkflowNodeType) => void
   removeNode: (id: string) => void
   setExecutionState: (state: 'idle' | 'running' | 'done') => void
+  setEdgeAnimated: (edgeId: string, animated: boolean) => void
   setEdgesAnimated: (animated: boolean) => void
+  showSupportNodes: () => void
   addMessage: (msg: { agent: string; message: string }) => void
   clearExecution: () => void
   resetGraph: () => void
@@ -178,7 +188,7 @@ export const useNodeGraphStore = create<NodeGraphStore>((set) => ({
 
   onConnect: (connection) =>
     set((s) => ({
-      edges: addEdge({ ...connection, animated: true, style: EDGE_STYLE }, s.edges),
+      edges: addEdge({ ...connection, animated: false, style: EDGE_MAIN }, s.edges),
     })),
 
   updateNodeData: (id, data) =>
@@ -191,14 +201,14 @@ export const useNodeGraphStore = create<NodeGraphStore>((set) => ({
   addNode: (type) => {
     const id = `${type}-${Date.now()}`
     const defaults: Record<WorkflowNodeType, Record<string, unknown>> = {
-      trigger: { task: '', language: 'de' },
-      agent: { label: 'AI Agent', status: 'idle', activeAgent: '', itemCount: 0 },
-      groq: { label: 'Groq', model: 'llama-3.1-8b-instant', itemCount: 0, status: 'idle' },
-      gemini: { label: 'Google Gemini', model: 'gemini-2.0-flash', itemCount: 0, status: 'idle' },
-      mistral: { label: 'Mistral', model: 'mistral-small-latest', itemCount: 0, status: 'idle' },
-      openrouter: { label: 'OpenRouter', model: 'baidu/cobuddy:free', itemCount: 0, status: 'idle' },
-      memory: { strategy: 'sqlite', itemCount: 0 },
-      tool: { name: 'new-tool', itemCount: 0 },
+      trigger:     { task: '', language: 'de' },
+      agent:       { label: 'AI Agent', status: 'idle', activeAgent: '', itemCount: 0 },
+      groq:        { label: 'Groq', model: 'llama-3.1-8b-instant', itemCount: 0, status: 'idle' },
+      gemini:      { label: 'Google Gemini', model: 'gemini-2.0-flash', itemCount: 0, status: 'idle' },
+      mistral:     { label: 'Mistral', model: 'mistral-small-latest', itemCount: 0, status: 'idle' },
+      openrouter:  { label: 'OpenRouter', model: 'baidu/cobuddy:free', itemCount: 0, status: 'idle' },
+      memory:      { strategy: 'sqlite', itemCount: 0 },
+      tool:        { name: 'new-tool', itemCount: 0 },
     }
     set((s) => ({
       nodes: [
@@ -216,10 +226,22 @@ export const useNodeGraphStore = create<NodeGraphStore>((set) => ({
 
   setExecutionState: (executionState) => set({ executionState }),
 
+  setEdgeAnimated: (edgeId, animated) =>
+    set((s) => ({
+      edges: s.edges.map((e) => e.id === edgeId ? { ...e, animated } : e),
+    })),
+
   setEdgesAnimated: (animated) =>
     set((s) => ({ edges: s.edges.map((e) => ({ ...e, animated })) })),
 
-  setPopupOpen: (popupOpen) => set({ popupOpen }),
+  showSupportNodes: () =>
+    set((s) => {
+      const existingIds = new Set(s.nodes.map((n) => n.id))
+      const newNodes = SUPPORT_NODES.filter((n) => !existingIds.has(n.id))
+      const existingEdgeIds = new Set(s.edges.map((e) => e.id))
+      const newEdges = SUPPORT_EDGES.filter((e) => !existingEdgeIds.has(e.id))
+      return { nodes: [...s.nodes, ...newNodes], edges: [...s.edges, ...newEdges] }
+    }),
 
   addMessage: (msg) =>
     set((s) => ({ messages: [...s.messages, msg] })),
@@ -228,13 +250,22 @@ export const useNodeGraphStore = create<NodeGraphStore>((set) => ({
     set((s) => ({
       messages: [],
       executionState: 'idle',
-      nodes: s.nodes.map((n) =>
-        n.type === 'agent'
-          ? { ...n, data: { ...n.data, status: 'idle', activeAgent: '', itemCount: 0 } }
-          : n
-      ),
+      // Remove support nodes, keep only defaults
+      nodes: s.nodes
+        .filter((n) => !['memory-1', 'tool-1'].includes(n.id))
+        .map((n) =>
+          n.type === 'agent'
+            ? { ...n, data: { ...n.data, status: 'idle', activeAgent: '', itemCount: 0 } }
+            : ['groq', 'gemini', 'mistral', 'openrouter'].includes(n.type ?? '')
+              ? { ...n, data: { ...n.data, status: 'idle', itemCount: 0 } }
+              : n
+        ),
+      edges: s.edges.filter((e) => !['e-agent-memory', 'e-agent-tool'].includes(e.id))
+        .map((e) => ({ ...e, animated: false })),
     })),
 
   resetGraph: () =>
-    set({ nodes: DEFAULT_NODES, edges: DEFAULT_EDGES, executionState: 'idle', messages: [] }),
+    set({ nodes: DEFAULT_NODES, edges: DEFAULT_EDGES, executionState: 'idle', messages: [], popupOpen: false }),
+
+  setPopupOpen: (popupOpen) => set({ popupOpen }),
 }))

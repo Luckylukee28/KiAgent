@@ -98,9 +98,9 @@ function createLLMNode(provider: keyof typeof LLM_CONFIGS) {
           </svg>
         </div>
 
-        {/* Handle */}
+        {/* Source: sends response UP to AI Agent */}
         <Handle
-          type="target"
+          type="source"
           position={Position.Top}
           className="!w-2.5 !h-2.5 !bg-green-500/60 !border-2 !border-[#13131f] !rounded-full"
         />
